@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kinapse — TCR / TCR-pMHC dynamics toolkit</title>
+<meta name="description" content="Modular Python toolkit for T-cell receptor (TCR) / TCR-pMHC structure preparation, sequence embedding, geometry, MD/structure dynamics analysis, and conformer generation.">
+<style>
+  :root{
+    --bg:#f7f8fa; --panel:#ffffff; --ink:#141821; --muted:#5b6472;
+    --line:#e6e9ef; --accent:#0d9488; --accent2:#4f46e5;
+    --code-bg:#0f172a; --code-ink:#e2e8f0; --chip:#eef2f7;
+    --shadow:0 1px 2px rgba(16,24,40,.05),0 8px 24px rgba(16,24,40,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0b0f16; --panel:#121826; --ink:#e8ecf3; --muted:#98a2b3;
+      --line:#222b3a; --accent:#2dd4bf; --accent2:#818cf8;
+      --code-bg:#0a0e17; --code-ink:#d7e0ee; --chip:#1a2334;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 30px rgba(0,0,0,.35);
+    }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+  code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+  /* nav */
+  nav{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 85%,transparent);
+      backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;gap:20px;height:58px}
+  .brand{font-weight:700;font-size:18px;letter-spacing:-.02em;display:flex;align-items:center;gap:9px}
+  .dot{width:11px;height:11px;border-radius:3px;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  nav .links{margin-left:auto;display:flex;gap:22px;font-size:14px;font-weight:500}
+  nav .links a{color:var(--muted)}
+  nav .links a:hover{color:var(--ink);text-decoration:none}
+
+  /* hero */
+  header{padding:76px 0 54px;border-bottom:1px solid var(--line)}
+  .eyebrow{display:inline-block;font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--accent);background:var(--chip);padding:5px 11px;border-radius:100px;border:1px solid var(--line)}
+  h1{font-size:clamp(38px,7vw,64px);line-height:1.02;letter-spacing:-.03em;margin:18px 0 0;font-weight:800}
+  h1 .g{background:linear-gradient(120deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lede{font-size:clamp(17px,2.4vw,21px);color:var(--muted);max-width:640px;margin:18px 0 0}
+  .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:10px;font-weight:600;font-size:15px;border:1px solid var(--line)}
+  .btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .btn.primary:hover{opacity:.9;text-decoration:none}
+  .btn.ghost{background:var(--panel);color:var(--ink)}
+  .btn.ghost:hover{border-color:var(--accent);text-decoration:none}
+  .install{margin-top:22px;display:inline-flex;align-items:center;gap:10px;background:var(--code-bg);color:var(--code-ink);
+    padding:12px 16px;border-radius:10px;font:13.5px/1 ui-monospace,monospace;box-shadow:var(--shadow);max-width:100%;overflow-x:auto}
+  .install .p{color:var(--accent)}
+
+  /* sections */
+  section{padding:56px 0;border-bottom:1px solid var(--line)}
+  .kicker{font-size:13px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--accent)}
+  h2{font-size:clamp(24px,3.6vw,32px);letter-spacing:-.02em;margin:8px 0 6px;font-weight:750}
+  .sub{color:var(--muted);margin:0 0 26px;max-width:680px}
+
+  /* pipeline flow */
+  .flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px}
+  .stage{flex:1 1 150px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 15px;box-shadow:var(--shadow)}
+  .stage .n{font:12px/1 ui-monospace,monospace;color:var(--accent2);font-weight:700}
+  .stage h3{margin:7px 0 4px;font-size:15.5px;letter-spacing:-.01em}
+  .stage p{margin:0;font-size:13px;color:var(--muted)}
+
+  /* module cards */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .card::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+  .card .num{font:12px/1 ui-monospace,monospace;color:var(--muted)}
+  .card h3{margin:8px 0 6px;font-size:18px;letter-spacing:-.01em}
+  .card p{margin:0 0 12px;color:var(--muted);font-size:14.5px}
+  .card ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+  .card li{font:12px/1.5 ui-monospace,monospace;background:var(--chip);border:1px solid var(--line);color:var(--ink);padding:3px 8px;border-radius:6px}
+
+  /* code */
+  pre{background:var(--code-bg);color:var(--code-ink);padding:18px 20px;border-radius:12px;overflow-x:auto;box-shadow:var(--shadow);font-size:13.5px;line-height:1.7;margin:0}
+  pre .c{color:#7c8aa5}
+  pre .k{color:var(--accent2);filter:brightness(1.25)}
+  pre .s{color:var(--accent);filter:brightness(1.15)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .lbl{font:12px/1 ui-monospace,monospace;color:var(--muted);margin:0 0 8px}
+
+  /* features */
+  .feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+  .feat div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+  .feat h4{margin:0 0 5px;font-size:15px;letter-spacing:-.01em}
+  .feat p{margin:0;font-size:13.5px;color:var(--muted)}
+
+  footer{padding:40px 0 60px;color:var(--muted);font-size:14px}
+  footer .row{display:flex;flex-wrap:wrap;gap:18px;align-items:center}
+  footer .links{margin-left:auto;display:flex;gap:18px;flex-wrap:wrap}
+
+  @media (max-width:640px){ .two{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <span class="brand"><span class="dot"></span>kinapse</span>
+  <span class="links">
+    <a href="#modules">Modules</a>
+    <a href="#install">Install</a>
+    <a href="#quickstart">Quickstart</a>
+    <a href="https://github.com/LilianDenzler/kinapse">GitHub</a>
+  </span>
+</div></nav>
+
+<header><div class="wrap">
+  <span class="eyebrow">TCR · TCR-pMHC · molecular dynamics</span>
+  <h1>Measure how models capture <span class="g">TCR conformational dynamics</span>.</h1>
+  <p class="lede">A modular Python toolkit to load and prep TCR / TCR-pMHC structures, embed sequences,
+  compute docking geometry, quantify structural &amp; MD dynamics, and generate conformer ensembles —
+  each part usable on its own, all composable into full pipelines.</p>
+  <div class="cta">
+    <a class="btn primary" href="https://github.com/LilianDenzler/kinapse">View on GitHub →</a>
+    <a class="btn ghost" href="#quickstart">Quickstart</a>
+    <a class="btn ghost" href="#install">Install</a>
+  </div>
+  <div class="install"><span class="p">$</span>&nbsp;git clone https://github.com/LilianDenzler/kinapse &amp;&amp; cd kinapse &amp;&amp; ./setup.sh</div>
+</div></header>
+
+<section id="flow"><div class="wrap">
+  <div class="kicker">The pipeline</div>
+  <h2>From a PDB &amp; trajectory to a divergence score</h2>
+  <p class="sub">Ground-truth MD and a model's predicted ensemble are compared region-by-region (CDR loops)
+  through low-dimensional embeddings and free-energy surfaces.</p>
+  <div class="flow">
+    <div class="stage"><div class="n">①</div><h3>Load &amp; prep</h3><p>IMGT-renumber, pair α/β chains, slice to CDR/FR regions.</p></div>
+    <div class="stage"><div class="n">②→③</div><h3>Embed &amp; geometry</h3><p>Sequence embeddings; α/β inter-domain docking angles.</p></div>
+    <div class="stage"><div class="n">④</div><h3>Analyse</h3><p>Align, featurize, reduce to 2-D, PMF + Jensen–Shannon divergence.</p></div>
+    <div class="stage"><div class="n">⑤</div><h3>Generate</h3><p>Sample conformers (DiG) and fold them back into a trajectory.</p></div>
+  </div>
+</div></section>
+
+<section id="modules"><div class="wrap">
+  <div class="kicker">Five modules</div>
+  <h2>Modular by design</h2>
+  <p class="sub">Import just what you need — <code>from kinapse.geometry import …</code> pulls in nothing from
+  <code>analysis</code>. Optional heavy deps (torch, PyMOL, MODELLER) load lazily, so <code>import kinapse</code> never breaks.</p>
+  <div class="grid">
+    <div class="card"><div class="num">① structures</div><h3>Load &amp; prep — the basis</h3>
+      <p>TCR / TCR-pMHC loader: IMGT numbering (ANARCI/ANARCII), interface-based α/β pairing, region slicing, scFv linkers.</p>
+      <ul><li>TCR</li><li>TCRPairView</li><li>TrajectoryView</li><li>pmhc (scaffold)</li></ul></div>
+    <div class="card"><div class="num">② embedding</div><h3>Sequence embedders</h3>
+      <p>Turn chains into sequence representations: FASTA export, MMseqs2-GPU MSAs, OpenFold / Evoformer embeddings.</p>
+      <ul><li>fasta</li><li>msa</li><li>evoformer</li></ul></div>
+    <div class="card"><div class="num">③ geometry</div><h3>Docking geometry</h3>
+      <p>The ABangle-style 6-parameter α/β inter-domain geometry — per structure or per MD frame, plus the inverse rebuild.</p>
+      <ul><li>calc_geometry</li><li>calc_geometry_MD</li><li>change_geometry</li></ul></div>
+    <div class="card"><div class="num">④ analysis</div><h3>Structure &amp; MD metrics</h3>
+      <p>Align (Kabsch/TMalign/ProFit), CA-dist/coord/dihedral features, PCA·kPCA·TICA·diffmap, trustworthiness, Mantel, PMF, JSD.</p>
+      <ul><li>rmsd_tm</li><li>embeddings</li><li>pmf_kde</li></ul></div>
+    <div class="card"><div class="num">⑤ generation</div><h3>Conformer sampling</h3>
+      <p>Drive the DiG diffusion sampler and post-process generated PDBs into an analysable trajectory.</p>
+      <ul><li>dig_runner</li><li>postprocess</li></ul></div>
+    <div class="card"><div class="num">+ pipelines · cli · config</div><h3>Compose &amp; run</h3>
+      <p>End-to-end benchmark / best-method / flexibility workflows, a <code>kinapse</code> CLI, and env/YAML path config — no hardcoded paths.</p>
+      <ul><li>kinapse&nbsp;prep</li><li>kinapse&nbsp;geometry</li><li>kinapse&nbsp;info</li></ul></div>
+  </div>
+</div></section>
+
+<section id="install"><div class="wrap">
+  <div class="kicker">Install</div>
+  <h2>Clones and installs cleanly</h2>
+  <p class="sub">CI pip-installs the package and runs the smoke tests on every push. The MD stack is easiest via conda;
+  a pure-pip install works on Linux too.</p>
+  <div class="two">
+    <div><p class="lbl"># conda (recommended)</p>
+      <pre><span class="c"># full env + package + smoke tests</span>
+git clone https://github.com/LilianDenzler/kinapse
+<span class="k">cd</span> kinapse &amp;&amp; ./setup.sh
+conda activate kinapse
+kinapse info</pre></div>
+    <div><p class="lbl"># pip (Linux wheels)</p>
+      <pre><span class="k">pip</span> install <span class="s">"kinapse[numbering,reduce] \
+  @ git+https://github.com/LilianDenzler/kinapse"</span>
+
+<span class="c"># or from a clone, editable:</span>
+<span class="k">pip</span> install -e <span class="s">".[numbering,reduce,dev]"</span></pre></div>
+  </div>
+</div></section>
+
+<section id="quickstart"><div class="wrap">
+  <div class="kicker">Quickstart</div>
+  <h2>A few lines to a prepped TCR</h2>
+  <p class="sub">Load a structure, get its CDR/FR sequences and Fv, compute geometry, then score dynamics.</p>
+  <pre><span class="k">from</span> kinapse.structures <span class="k">import</span> load_tcr
+<span class="k">from</span> kinapse.geometry <span class="k">import</span> calc_tcr_geometry_MD
+<span class="k">from</span> kinapse.analysis <span class="k">import</span> run_ca_dist, oriol_analysis
+
+tcr  = load_tcr(<span class="s">"1kgc.pdb"</span>, traj=<span class="s">"1kgc.xtc"</span>)   <span class="c"># IMGT-renumber + pair α/β + attach MD</span>
+pair = tcr.pairs[<span class="s">0</span>]
+print(pair.cdr_fr_sequences())                <span class="c"># {'A_CDR3': 'ATAAVGGFKTI', ...}</span>
+
+df = calc_tcr_geometry_MD(<span class="s">"1kgc.xtc"</span>, <span class="s">"1kgc.pdb"</span>)  <span class="c"># per-frame α/β docking angles</span>
+<span class="c"># run_ca_dist(...) / oriol_analysis(...) → 2-D embedding, PMF, Jensen–Shannon divergence</span></pre>
+  <p style="margin-top:18px" class="sub">Or from the shell:</p>
+  <pre><span class="k">kinapse</span> prep 1kgc.pdb --traj 1kgc.xtc --out prep/
+<span class="k">kinapse</span> geometry 1kgc.pdb --out geom/
+<span class="k">kinapse</span> pipelines            <span class="c"># list the end-to-end workflows</span></pre>
+</div></section>
+
+<section id="why"><div class="wrap">
+  <div class="kicker">Why kinapse</div>
+  <h2>Built to be used and shared</h2>
+  <div class="feat" style="margin-top:22px">
+    <div><h4>Independently usable</h4><p>Five sub-packages; lower layers never import higher ones.</p></div>
+    <div><h4>Lazy imports</h4><p><code>import kinapse</code> works even without torch, PyMOL or MODELLER.</p></div>
+    <div><h4>Config, not hardcoding</h4><p>Paths resolve from env vars / YAML — no more <code>/mnt/…</code> in scripts.</p></div>
+    <div><h4>pip-installable</h4><p>Core installs from wheels; heavy stacks are optional extras.</p></div>
+    <div><h4>CI-tested</h4><p>Every push installs from a clean checkout and runs the smoke suite.</p></div>
+    <div><h4>Nothing lost</h4><p>All original TCR_Metrics capabilities preserved — just reorganised.</p></div>
+  </div>
+</div></section>
+
+<footer><div class="wrap"><div class="row">
+  <span>kinapse — TCR / TCR-pMHC structural dynamics toolkit</span>
+  <span class="links">
+    <a href="https://github.com/LilianDenzler/kinapse">GitHub</a>
+    <a href="https://github.com/LilianDenzler/kinapse/blob/main/docs/quickstart.md">Docs</a>
+    <a href="https://github.com/LilianDenzler/kinapse/blob/main/docs/architecture.md">Architecture</a>
+    <a href="https://github.com/LilianDenzler/kinapse/blob/main/LICENSE">MIT</a>
+  </span>
+</div></div></footer>
+
+</body>
+</html>
