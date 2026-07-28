@@ -1,0 +1,26 @@
+# Example kinapse configuration.
+#
+# Copy to `kinapse.yaml` (or `config.yaml`) in your working directory, or point
+# KINAPSE_CONFIG at it. Every value can also be overridden by an environment
+# variable (KINAPSE_* takes priority, legacy TCR_DYNAMICS_* still works).
+#
+# ${project_root} and ${ANY_ENV_VAR} are expanded inside string values.
+
+project_root: ${project_root}
+
+data:
+  # Where inputs live and outputs are written. The original pipelines hardcoded
+  # absolute mounts; put those here instead of editing the scripts, e.g.:
+  #   datasets: /mnt/larry/lilian/DATA
+  #   output:   /mnt/dave/lilian/DIG_VARIATION_OUTPUTS
+  datasets: ${project_root}/data/datasets
+  output: ${project_root}/data/output
+  trajectories: ${project_root}/data/trajectories
+
+generation:
+  # External DiG diffusion model — point these at your checkout/checkpoints.
+  run_inference: ${project_root}/protein/run_inference.py
+  run_inference_addnoise: ${project_root}/protein/run_inference_addnoise.py
+  get_init_state: ${project_root}/protein/full_pipeline/get_init_state.py
+  openfold_wrapper: ${project_root}/protein/full_pipeline/evoformer_representation/openfold_wrapper_for_evoformer.py
+  checkpoint: ${project_root}/protein/checkpoints/checkpoint-520k.pth

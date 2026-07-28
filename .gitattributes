@@ -1,0 +1,7 @@
+# Treat scientific/binary assets as binary (no line-ending munging, no diffs).
+*.npy   binary
+*.pdb   binary
+*.xtc   binary
+*.pse   binary
+*.png   binary
+*.ipynb binary

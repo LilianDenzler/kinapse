@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Editable-install / packaging
+*.so
+pip-wheel-metadata/
+
+# Test & tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Local config & run outputs
+kinapse.yaml
+config.yaml
+kinapse_prep/
+kinapse_geometry/
+outputs/
+*.log
+error.txt
+
+# OS
+.DS_Store

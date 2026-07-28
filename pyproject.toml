@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kinapse"
+version = "0.1.0"
+description = "Modular toolkit for TCR / TCR-pMHC structure prep, sequence embedding, geometry, MD/structure dynamics analysis, and conformer generation."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Lilian Denzler" }]
+keywords = ["TCR", "immunology", "molecular-dynamics", "protein-structure", "IMGT", "pMHC"]
+
+# Core, pip-installable dependencies (the structures + analysis backbone).
+# NOTE: a few scientific deps are easiest via conda — see environment.yml.
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "matplotlib",
+    "pyyaml",
+    "tqdm",
+    "scikit-learn",
+    "biopython",
+    "mdtraj",
+    "MDAnalysis",
+    "biotite",
+]
+
+[project.optional-dependencies]
+# IMGT numbering (ANARCII is pip-installable; legacy ANARCI is bioconda — see docs)
+numbering = ["anarcii"]
+# advanced dimensionality reduction (TICA / diffusion maps)
+reduce = ["deeptime"]
+# sequence embedding (Evoformer path also needs an external OpenFold checkout + MMseqs2 binary)
+embed = ["torch"]
+# developer tooling
+dev = ["pytest", "ruff", "build"]
+# convenience aggregate of the pip-installable extras
+all = ["anarcii", "deeptime", "torch"]
+
+[project.scripts]
+kinapse = "kinapse.cli:main"
+
+[project.urls]
+Homepage = "https://example.com/kinapse"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"kinapse.data" = ["so3/*.npy"]
+"kinapse.geometry" = ["data/**/*"]
+"kinapse.structures.numbering" = ["README"]
+"kinapse.pipelines.benchmark" = ["*.yaml"]
+"kinapse.pipelines.best_method" = ["*.yml"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.pytest.ini_options]
+# Only collect the real test suite — never the migrated pipeline modules
+# (e.g. pipelines/best_method/run_test.py, which matches *_test.py).
+testpaths = ["tests"]
+
+[tool.ruff]
+# The migrated science code predates linting; keep CI green by not gating on it.
+extend-exclude = ["src/kinapse/pipelines", "src/kinapse/geometry/data"]
