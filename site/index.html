@@ -135,10 +135,10 @@
   <p class="sub">Ground-truth MD and a model's predicted ensemble are compared region-by-region (CDR loops)
   through low-dimensional embeddings and free-energy surfaces.</p>
   <div class="flow">
-    <div class="stage"><div class="n">①</div><h3>Load &amp; prep</h3><p>IMGT-renumber, pair α/β chains, slice to CDR/FR regions.</p></div>
-    <div class="stage"><div class="n">②→③</div><h3>Embed &amp; geometry</h3><p>Sequence embeddings; α/β inter-domain docking angles.</p></div>
-    <div class="stage"><div class="n">④</div><h3>Analyse</h3><p>Align, featurize, reduce to 2-D, PMF + Jensen–Shannon divergence.</p></div>
-    <div class="stage"><div class="n">⑤</div><h3>Generate</h3><p>Sample conformers (DiG) and fold them back into a trajectory.</p></div>
+    <div class="stage"><div class="n">1</div><h3>Load &amp; prep</h3><p>IMGT-renumber, pair α/β chains, slice to CDR/FR regions.</p></div>
+    <div class="stage"><div class="n">2–3</div><h3>Embed &amp; geometry</h3><p>Sequence embeddings; α/β inter-domain docking angles.</p></div>
+    <div class="stage"><div class="n">4</div><h3>Analyse</h3><p>Align, featurize, reduce to 2-D, PMF + Jensen–Shannon divergence.</p></div>
+    <div class="stage"><div class="n">5</div><h3>Generate</h3><p>Sample conformers (DiG) and fold them back into a trajectory.</p></div>
   </div>
 </div></section>
 
@@ -148,19 +148,19 @@
   <p class="sub">Import just what you need — <code>from kinapse.geometry import …</code> pulls in nothing from
   <code>analysis</code>. Optional heavy deps (torch, PyMOL, MODELLER) load lazily, so <code>import kinapse</code> never breaks.</p>
   <div class="grid">
-    <div class="card"><div class="num">① structures</div><h3>Load &amp; prep — the basis</h3>
+    <div class="card"><div class="num"><strong>1</strong> · structures</div><h3>Load &amp; prep — the basis</h3>
       <p>TCR / TCR-pMHC loader: IMGT numbering (ANARCI/ANARCII), interface-based α/β pairing, region slicing, scFv linkers.</p>
       <ul><li>TCR</li><li>TCRPairView</li><li>TrajectoryView</li><li>pmhc (scaffold)</li></ul></div>
-    <div class="card"><div class="num">② embedding</div><h3>Sequence embedders</h3>
+    <div class="card"><div class="num"><strong>2</strong> · embedding</div><h3>Sequence embedders</h3>
       <p>Turn chains into sequence representations: FASTA export, MMseqs2-GPU MSAs, OpenFold / Evoformer embeddings.</p>
       <ul><li>fasta</li><li>msa</li><li>evoformer</li></ul></div>
-    <div class="card"><div class="num">③ geometry</div><h3>Docking geometry</h3>
+    <div class="card"><div class="num"><strong>3</strong> · geometry</div><h3>Docking geometry</h3>
       <p>The ABangle-style 6-parameter α/β inter-domain geometry — per structure or per MD frame, plus the inverse rebuild.</p>
       <ul><li>calc_geometry</li><li>calc_geometry_MD</li><li>change_geometry</li></ul></div>
-    <div class="card"><div class="num">④ analysis</div><h3>Structure &amp; MD metrics</h3>
+    <div class="card"><div class="num"><strong>4</strong> · analysis</div><h3>Structure &amp; MD metrics</h3>
       <p>Align (Kabsch/TMalign/ProFit), CA-dist/coord/dihedral features, PCA·kPCA·TICA·diffmap, trustworthiness, Mantel, PMF, JSD.</p>
       <ul><li>rmsd_tm</li><li>embeddings</li><li>pmf_kde</li></ul></div>
-    <div class="card"><div class="num">⑤ generation</div><h3>Conformer sampling</h3>
+    <div class="card"><div class="num"><strong>5</strong> · generation</div><h3>Conformer sampling</h3>
       <p>Drive the DiG diffusion sampler and post-process generated PDBs into an analysable trajectory.</p>
       <ul><li>dig_runner</li><li>postprocess</li></ul></div>
     <div class="card"><div class="num">+ pipelines · cli · config</div><h3>Compose &amp; run</h3>
