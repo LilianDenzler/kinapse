@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" version="24.0.0" type="device">
+  <diagram id="kinapse-arch" name="kinapse architecture">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="kinapse — project organisation and features" style="text;html=1;align=left;verticalAlign=middle;fontSize=22;fontStyle=1;fontColor=#141821;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1000" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Modular toolkit for TCR / TCR-pMHC structural dynamics · higher layers import lower · nothing below imports above" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#5b6472;" vertex="1" parent="1">
+          <mxGeometry x="40" y="52" width="1200" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Band label: entry points -->
+        <mxCell id="lbl_entry" value="ENTRY POINTS" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="300" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- CLI -->
+        <mxCell id="cli" value="CLI   (kinapse …)" style="swimlane;rounded=1;html=1;startSize=30;fontStyle=1;fontSize=13;fillColor=#dae8fc;strokeColor=#6c8ebf;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="360" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="cli_b" value="• kinapse info    — version, config and data paths&#10;• kinapse prep    — load / IMGT-renumber / pair a TCR&#10;• kinapse geometry — α/β docking geometry&#10;• kinapse pipelines — list end-to-end workflows" style="text;html=0;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;whiteSpace=wrap;fontSize=10;" vertex="1" parent="cli">
+          <mxGeometry x="0" y="30" width="360" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- Pipelines -->
+        <mxCell id="pipe" value="pipelines — composable, config-driven workflows" style="swimlane;rounded=1;html=1;startSize=30;fontStyle=1;fontSize=13;fillColor=#dae8fc;strokeColor=#6c8ebf;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="420" y="100" width="1220" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="pipe_b" value="• benchmark/  — run_calc_scaled, benchmarks_calc_scaled (+ _parallel), benchmark_table_maker,&#10;      compare_MD_adaptive_sampling, sample_MD_for_baselines, Standardise_by_RMSD, PyMOL viz, config_assess_modes*.yaml&#10;• best_method/ — asses_model_output, run_test, analyse_metrics, global_analysis_best_metric, global_method_selection, best_methods_config.yml&#10;• analyse_md/  — gt_flexibility_analysis (per-region RMSD-to-average, representative frame, ridgeline overlays)" style="text;html=0;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;whiteSpace=wrap;fontSize=10;" vertex="1" parent="pipe">
+          <mxGeometry x="0" y="30" width="1220" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- Band label: modules -->
+        <mxCell id="lbl_mod" value="FIVE CORE MODULES — each independently usable" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#5b6472;" vertex="1" parent="1">
+          <mxGeometry x="40" y="266" width="500" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- 1 structures -->
+        <mxCell id="m_struct" value="1 · structures — the basis" style="swimlane;rounded=1;html=1;startSize=30;fontStyle=1;fontSize=13;fillColor=#d5e8d4;strokeColor=#82b366;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="40" y="288" width="303" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="m_struct_b" value="load and prep TCR / TCR-pMHC&#10;&#10;• tcr.py — TCR, TCRPairView,&#10;   TrajectoryView, load_tcr&#10;• numbering/anarci_numbering —&#10;   ANARCII / legacy ANARCI (lazy)&#10;• numbering/tcr_pairing —&#10;   pair_tcrs_by_interface (Hungarian)&#10;• numbering/main —&#10;   apply_imgt_renumbering, process_pdb&#10;• io — load/write PDB, Bio↔biotite↔mdtraj&#10;• ops — copy_subset, sanitize_structure&#10;• select — region→atom predicates&#10;• linkers/ — link_alpha_beta (MODELLER)&#10;• pmhc — PMHC, TCRpMHC (scaffold)" style="text;html=0;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;whiteSpace=wrap;fontSize=10;" vertex="1" parent="m_struct">
+          <mxGeometry x="0" y="30" width="303" height="310" as="geometry" />
+        </mxCell>
+
+        <!-- 2 embedding -->
+        <mxCell id="m_embed" value="2 · embedding" style="swimlane;rounded=1;html=1;startSize=30;fontStyle=1;fontSize=13;fillColor=#e1d5e7;strokeColor=#9673a6;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="359" y="288" width="303" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="m_embed_b" value="sequence embedders&#10;&#10;• fasta — pdb_to_fasta&#10;• msa — MMseqs2-GPU MSAs&#10;• evoformer — OpenFold /&#10;   Evoformer embeddings (torch)&#10;&#10;[optional 'embed' extra:&#10;   torch + OpenFold + MMseqs2]" style="text;html=0;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;whiteSpace=wrap;fontSize=10;" vertex="1" parent="m_embed">
+          <mxGeometry x="0" y="30" width="303" height="310" as="geometry" />
+        </mxCell>
+
+        <!-- 3 geometry -->
+        <mxCell id="m_geom" value="3 · geometry" style="swimlane;rounded=1;html=1;startSize=30;fontStyle=1;fontSize=13;fillColor=#ffe6cc;strokeColor=#d79b00;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="678" y="288" width="303" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="m_geom_b" value="α/β inter-domain docking geometry&#10;&#10;• calc_geometry — 6-parameter&#10;   docking geometry (per structure)&#10;• calc_geometry_MD — per-frame&#10;   (streams via MDAnalysis)&#10;• change_geometry — rebuild a&#10;   structure from the 6 angles&#10;• get_anchor_coords — CDR anchor&#10;   CA coordinates&#10;• data/consensus_output —&#10;   reference structures + PCA axes" style="text;html=0;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;whiteSpace=wrap;fontSize=10;" vertex="1" parent="m_geom">
+          <mxGeometry x="0" y="30" width="303" height="310" as="geometry" />
+        </mxCell>
+
+        <!-- 4 analysis -->
+        <mxCell id="m_anal" value="4 · analysis — structure + MD metrics" style="swimlane;rounded=1;html=1;startSize=30;fontStyle=1;fontSize=13;fillColor=#fff2cc;strokeColor=#d6b656;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="997" y="288" width="303" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="m_anal_b" value="the scientific core&#10;&#10;• aligning — Kabsch / TMalign / ProFit&#10;• rmsd_tm — per-frame RMSD / TM-score&#10;• embeddings/features —&#10;   CA-dist · coords · dihedrals&#10;• embeddings/dim_reduction —&#10;   PCA · wPCA · kPCA · TICA · diffmap&#10;• embeddings/metrics —&#10;   trustworthiness · Mantel&#10;• embeddings/run_* — per-region runners&#10;• pmf_kde — PMF (hist+KDE) ·&#10;   Jensen–Shannon divergence&#10;• plotters — plot_pca / plot_pmf&#10;• PCA_methods, embed_assesment (legacy)" style="text;html=0;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;whiteSpace=wrap;fontSize=10;" vertex="1" parent="m_anal">
+          <mxGeometry x="0" y="30" width="303" height="310" as="geometry" />
+        </mxCell>
+
+        <!-- 5 generation -->
+        <mxCell id="m_gen" value="5 · generation" style="swimlane;rounded=1;html=1;startSize=30;fontStyle=1;fontSize=13;fillColor=#f8cecc;strokeColor=#b85450;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="1316" y="288" width="303" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="m_gen_b" value="generative conformer sampling&#10;&#10;• dig_runner — runall() DiG&#10;   sampler orchestration&#10;• experiment — top-level&#10;   experiment driver&#10;• postprocess — fold PDBs → xtc,&#10;   strip α/β linker&#10;&#10;[uses SO(3) tables in data/so3;&#10; external DiG model]" style="text;html=0;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;whiteSpace=wrap;fontSize=10;" vertex="1" parent="m_gen">
+          <mxGeometry x="0" y="30" width="303" height="310" as="geometry" />
+        </mxCell>
+
+        <!-- Band label: foundation -->
+        <mxCell id="lbl_found" value="FOUNDATION — imported by every module" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#5b6472;" vertex="1" parent="1">
+          <mxGeometry x="40" y="644" width="500" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- config -->
+        <mxCell id="f_config" value="config.py" style="swimlane;rounded=1;html=1;startSize=28;fontStyle=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#999999;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="40" y="666" width="520" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="f_config_b" value="• PathConfig · get_paths()&#10;• env vars (KINAPSE_*) / YAML — no hardcoded paths&#10;• package_data_dir(), so3_dir(), consensus_output_dir()" style="text;html=0;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;whiteSpace=wrap;fontSize=10;" vertex="1" parent="f_config">
+          <mxGeometry x="0" y="28" width="520" height="82" as="geometry" />
+        </mxCell>
+
+        <!-- regions -->
+        <mxCell id="f_regions" value="regions.py" style="swimlane;rounded=1;html=1;startSize=28;fontStyle=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#999999;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="584" y="666" width="400" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="f_regions_b" value="• CDR_FR_RANGES — IMGT CDR1/2/3 + FR1–4 (A/B)&#10;• VARIABLE_RANGE = (1, 128)" style="text;html=0;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;whiteSpace=wrap;fontSize=10;" vertex="1" parent="f_regions">
+          <mxGeometry x="0" y="28" width="400" height="82" as="geometry" />
+        </mxCell>
+
+        <!-- data -->
+        <mxCell id="f_data" value="data/ (packaged resources)" style="swimlane;rounded=1;html=1;startSize=28;fontStyle=1;fontSize=12;fillColor=#f5f5f5;strokeColor=#999999;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="1008" y="666" width="611" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="f_data_b" value="• data/so3 — SO(3) diffusion lookup tables (generation)&#10;• geometry/data/consensus_output — TCR geometry reference structures&#10;• numbering/README, pipelines config_assess_modes*.yaml" style="text;html=0;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;whiteSpace=wrap;fontSize=10;" vertex="1" parent="f_data">
+          <mxGeometry x="0" y="28" width="611" height="82" as="geometry" />
+        </mxCell>
+
+        <!-- Band label: packaging -->
+        <mxCell id="lbl_pkg" value="PACKAGING + SHARING — usable from a GitHub clone" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#0e8088;" vertex="1" parent="1">
+          <mxGeometry x="40" y="792" width="560" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="pkg" value="Packaging + sharing" style="swimlane;rounded=1;html=1;startSize=28;fontStyle=1;fontSize=12;fillColor=#b0e3e6;strokeColor=#0e8088;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="40" y="814" width="1579" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="pkg_b" value="• pyproject.toml — src layout; optional extras:  numbering (anarcii) · reduce (deeptime) · embed (torch) · dev · all&#10;• environment.yml (conda: MD stack + bioconda ANARCI + PyMOL)   ·   setup.sh (one-command bootstrap)   ·   Makefile&#10;• CI: .github/workflows/ci.yml — clean pip install + smoke tests (py3.10 / 3.11)   ·   GitHub Pages: pages.yml → liliandenzler.github.io/kinapse&#10;• tests/ (dependency-light smoke)   ·   docs/ (architecture · quickstart · pipelines · migration)   ·   README   ·   LICENSE (MIT)" style="text;html=0;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;whiteSpace=wrap;fontSize=10;" vertex="1" parent="pkg">
+          <mxGeometry x="0" y="28" width="1579" height="102" as="geometry" />
+        </mxCell>
+
+        <!-- Notes -->
+        <mxCell id="notes" value="Notes / key facts" style="swimlane;rounded=1;html=1;startSize=28;fontStyle=1;fontSize=12;fillColor=#f0f4f8;strokeColor=#9aa4b2;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="40" y="960" width="1579" height="112" as="geometry" />
+        </mxCell>
+        <mxCell id="notes_b" value="• Lazy imports: optional heavy deps (torch, PyMOL, MODELLER, deeptime) load only when used — so 'import kinapse' never fails on a minimal install.&#10;• Data flow:  ground-truth PDB + MD .xtc  and  model PDBs  →  structures (prep)  →  analysis (align → featurize → reduce to 2-D → PMF → Jensen–Shannon divergence)  →  pipelines (JSD tables + figures).&#10;• pMHC is scaffolded (API-ready; current science is TCR-variable-domain only).   ·   Migrated byte-for-byte from the former TCR_Metrics — only import wiring changed." style="text;html=0;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;whiteSpace=wrap;fontSize=10;" vertex="1" parent="notes">
+          <mxGeometry x="0" y="28" width="1579" height="84" as="geometry" />
+        </mxCell>
+
+        <!-- Dependency arrows (entry points drive modules) -->
+        <mxCell id="e_cli_struct" style="endArrow=block;endFill=1;html=1;dashed=1;strokeColor=#9aa4b2;exitX=0.3;exitY=1;entryX=0.3;entryY=0;" edge="1" parent="1" source="cli" target="m_struct">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pipe_struct" style="endArrow=block;endFill=1;html=1;dashed=1;strokeColor=#9aa4b2;exitX=0.1;exitY=1;entryX=0.7;entryY=0;" edge="1" parent="1" source="pipe" target="m_struct">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pipe_anal" style="endArrow=block;endFill=1;html=1;dashed=1;strokeColor=#9aa4b2;exitX=0.55;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="pipe" target="m_anal">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pipe_gen" style="endArrow=block;endFill=1;html=1;dashed=1;strokeColor=#9aa4b2;exitX=0.85;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="pipe" target="m_gen">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Modules rest on foundation -->
+        <mxCell id="e_struct_found" style="endArrow=open;endFill=0;html=1;dashed=1;strokeColor=#c0c6d0;exitX=0.15;exitY=1;entryX=0.1;entryY=0;" edge="1" parent="1" source="m_struct" target="f_config">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_anal_found" style="endArrow=open;endFill=0;html=1;dashed=1;strokeColor=#c0c6d0;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="m_anal" target="f_data">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -18,7 +18,7 @@ layers never import higher ones, so each is usable on its own.
 
 ## The five modules
 
-### ① `structures` — the basis
+### 1 `structures` — the basis - Prep and loading
 Load a PDB, fix duplicate residue numbers, IMGT-renumber (ANARCI/ANARCII), pair
 α/β (or γ/δ) chains by interface contacts (Hungarian assignment), slice to
 CDR/framework regions, and optionally attach an MD trajectory.
@@ -28,8 +28,25 @@ CDR/framework regions, and optionally attach an MD trajectory.
 - `linkers/` — scFv α–β linker building (MODELLER)
 - `pmhc.py` — **scaffold** for pMHC / TCR-pMHC complexes (API-ready)
 
+### 1.2 `structure modelling` —
+- run structure generation models (AlphaFold, OpenFold, Rosetta, MODELLER) to get PDBs from sequence only
+- run structure refinement models (Rosetta, OpenMM) to get PDBs from PDBs
+- run point mutation models
+
 ### ② `embedding` — sequence embedders
-`fasta.py` (PDB→FASTA), `msa.py` (MMseqs2-GPU), `evoformer.py` (OpenFold).
+`fasta.py` (PDB→FASTA),
+sequence embedding:
+`msa.py` (MMseqs2-GPU), `evoformer.py` (OpenFold).
+structure embedding:
+- `embeddings/features.py` — Cα-distance / coordinate / dihedral features
+- `embeddings/dim_reduction.py` — PCA, weighted PCA, kernel PCA, TICA, diffusion maps
+- `embeddings/metrics.py` — trustworthiness, Mantel test
+
+
+### ② `pMHC binding prediction` —
+- running existing models to get scores
+- benchmark existing models to get scores
+
 
 ### ③ `geometry` — α/β docking geometry
 The ABangle-style 6 parameters (BA torsion, four bend angles, centroid distance)
@@ -38,18 +55,45 @@ structure (`calc_geometry.py`) or per MD frame (`calc_geometry_MD.py`), plus the
 inverse rebuild (`change_geometry.py`). Reference consensus data ships in
 `geometry/data/`.
 
-### ④ `analysis` — structure & MD analysis + metrics
-The scientific core:
+### ④ `conformer analysis` — structure & MD analysis + metrics
+Comparing conformers and MD trajectories, featurizing, reducing, and computing metrics.
 - `aligning.py` — Kabsch / TMalign / ProFit superposition (per region)
 - `rmsd_tm.py` — per-frame RMSD & TM-score
-- `embeddings/features.py` — Cα-distance / coordinate / dihedral features
-- `embeddings/dim_reduction.py` — PCA, weighted PCA, kernel PCA, TICA, diffusion maps
-- `embeddings/metrics.py` — trustworthiness, Mantel test
 - `pmf_kde.py` — free-energy surfaces (PMF) + **Jensen–Shannon divergence** (headline metric)
 - `embeddings/run_*.py` — per-region end-to-end runners
 - `plotters.py`, `PCA_methods.py` (legacy projection), `embed_assesment.py` (legacy)
 
-### ⑤ `generation` — conformer sampling
+
+### 5 `benchmarking` — other models to run
+- It's flexible
+
+
+### 5 `scoring structures` — run existing models to get scores
+complexes: Docking Quality & Interface Accuracy
+- only compare to ground truth:
+  - dockq, TCR-iRMSD, RMSD per region, TM-score
+- energy scoring:
+  - Rosetta,
+  - FoldX,
+  - OpenMM
+  -
+
+only TCR/ only pMHC:
+-
+
+
+
+### 6 `dynamics other` —
+- NMA analyses
+- ANTIPASTI
+
+
+### 6 `modelling other` —
+- CD8 modelling -> see if this changes something
+
+
+
+### ⑤ `conformer generation` — conformer sampling
 `dig_runner.py` (drive the external DiG diffusion sampler), `postprocess.py`
 (fold generated PDBs into an `.xtc`, stripping the linker), `experiment.py`
 (top-level driver).
