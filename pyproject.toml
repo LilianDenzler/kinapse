@@ -24,7 +24,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # --- native science modules (one extra per module) ---
-structures = ["biopython", "biotite", "mdtraj", "anarcii"]
+structures = ["biopython", "biotite", "mdtraj", "anarcii", "freesasa"]
 sequence   = ["biopython"]
 geometry   = ["biotite", "biopython", "MDAnalysis"]
 dynamics   = ["mdtraj", "MDAnalysis", "scikit-learn", "scipy", "matplotlib", "deeptime"]

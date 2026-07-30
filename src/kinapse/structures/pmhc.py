@@ -126,9 +126,42 @@ class TCRpMHC:
         except Exception:
             self.pmhc = None  # complex may be TCR-only
 
+    def interface(self, method: str = "native", cutoff: float = 5.0, with_bsa: bool = True):
+        """Characterize the TCR↔pMHC interface (computed on demand, then cached).
+
+        Receptor = the TCR α/β chains; ligand = every other polymer chain (pMHC).
+        Returns an :class:`kinapse.structures.interface.InterfaceResult` with the
+        interface residues (per chain), atom-contact count, and buried surface area
+        (if ``freesasa`` is installed). ``method`` selects the engine: ``"native"``
+        (default; no external tools) or the optional ``"pisa"`` / ``"plip"`` /
+        ``"stcrpy"`` backends.
+        """
+        key = (method, cutoff, with_bsa)
+        if getattr(self, "_iface_cache", None) is not None and getattr(self, "_iface_key", None) == key:
+            return self._iface_cache
+        from Bio.PDB import is_aa
+        from .interface import analyze_interface
+
+        rec: list = []
+        for pair in self.tcr.pairs:
+            for cid in (getattr(pair, "alpha_chain_id", None), getattr(pair, "beta_chain_id", None)):
+                if cid and cid not in rec:
+                    rec.append(cid)
+        lig = [ch.id for ch in self.tcr.original_structure
+               if ch.id not in rec and any(is_aa(r, standard=False) for r in ch)]
+        if not lig:
+            raise ValueError(
+                "no non-TCR (pMHC) chains found — is this a TCR-pMHC complex? "
+                "(the TCR-only case has no interface to characterize)."
+            )
+        res = analyze_interface(self.tcr.original_structure, rec, lig,
+                                cutoff=cutoff, method=method, with_bsa=with_bsa)
+        self._iface_cache, self._iface_key = res, key
+        return res
+
     def interface_contacts(self, cutoff: float = 5.0):
-        """CDR-loop <-> peptide/MHC contact map. TODO."""
-        raise NotImplementedError("TCR-pMHC interface analysis is not implemented yet (scaffold).")
+        """Deprecated alias for :meth:`interface`."""
+        return self.interface(cutoff=cutoff)
 
     def docking_geometry(self):
         """TCR-over-pMHC docking angle / crossing angle. TODO.

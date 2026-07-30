@@ -29,6 +29,9 @@ _LAZY = {
     "PMHC": (".pmhc", "PMHC"),
     "TCRpMHC": (".pmhc", "TCRpMHC"),
     "load_pmhc": (".pmhc", "load_pmhc"),
+    # interface characterization
+    "analyze_interface": (".interface", "analyze_interface"),
+    "InterfaceResult": (".interface", "InterfaceResult"),
 }
 
 __all__ = list(_LAZY) + ["load_tcr"]
