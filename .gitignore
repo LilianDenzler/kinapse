@@ -30,3 +30,6 @@ error.txt
 
 # OS
 .DS_Store
+examples/out_*.pdb
+examples/geom_out/
+examples/out/
