@@ -22,7 +22,26 @@ Install (ifscore is a separate, optional package)::
 
 Then provision the scorers you want (one-off; uses `uv`)::
 
-    ifscore install dockq prodigy      # the `geometry` scorer needs nothing
+    ifscore install dockq prodigy rosetta   # the `geometry` scorer needs nothing
+
+Licensed scorers you must supply yourself
+-----------------------------------------
+Some scorers are academic-licensed and are **not** shipped with ifscore or
+kinapse — you obtain the licence and point ifscore at the binary (no path is
+hardcoded):
+
+* **FoldX** — get a free academic licence and download the binary from
+  https://foldxsuite.crg.eu (licences are **time-limited / expire yearly**), then::
+
+      export IFSCORE_FOLDX=/your/path/to/foldx
+      # or record it once:
+      ifscore install foldx --path /your/path/to/foldx
+
+* **PyRosetta** (the ``rosetta`` scorer) — free for academics, auto-downloaded by
+  ``ifscore install rosetta``; commercial use needs a licence (license@uw.edu).
+
+``ifscore doctor`` reports whether a licensed binary is missing, ready, or
+licence-expired, so a dead FoldX licence never silently yields wrong numbers.
 
 Note: ifscore's ``geometry`` scorer (interface BSA / SASA / contacts) is a
 different thing from :mod:`kinapse.geometry` (α/β domain docking angles).
