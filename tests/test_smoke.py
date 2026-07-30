@@ -19,10 +19,10 @@ def test_version_and_regions():
 
 @pytest.mark.parametrize("mod", [
     "kinapse.structures",
-    "kinapse.embedding",
+    "kinapse.sequence_embedding",
     "kinapse.geometry",
-    "kinapse.analysis",
-    "kinapse.generation",
+    "kinapse.dynamics_analysis",
+    "kinapse.conformer_generation",
     "kinapse.pipelines",
     "kinapse.config",
     "kinapse.structures.pmhc",
@@ -35,7 +35,7 @@ def test_subpackages_import_light(mod):
 def test_lazy_maps_are_consistent():
     # Every lazily-exported name should resolve to a real submodule attribute
     # target string (we don't import the heavy target here, just the map).
-    import kinapse.analysis as a
+    import kinapse.dynamics_analysis as a
     import kinapse.structures as s
     for name in a.__all__:
         assert name in a._LAZY or name == "load_tcr"

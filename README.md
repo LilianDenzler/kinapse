@@ -11,20 +11,22 @@ of a TCR by comparing its predicted ensemble against ground-truth molecular
 dynamics — region by region (CDR loops) — via low-dimensional embeddings,
 free-energy surfaces, and Jensen–Shannon divergence.
 
-It is built as **five independently usable sub-packages** that also compose into
-full, configurable pipelines.
+It is built as **modular sub-packages** (one concern → one module → one extra) on a
+**lightweight core**, and it's trivial to plug in your own external model.
 
 ```
-kinapse
-├── structures   ①  load & prep TCR / TCR-pMHC structures        ← the basis
-├── embedding    ②  sequence embedders (MSA, Evoformer)
-├── geometry     ③  TCR α/β inter-domain docking geometry
-├── analysis     ④  structure & MD analysis + dynamics metrics
-└── generation   ⑤  generative conformer sampling (DiG)
-     + pipelines      composable end-to-end workflows
-     + config         env/YAML path resolution (no more hardcoded /mnt paths)
-     + cli            the `kinapse` command
+kinapse  (lightweight core: config · regions · runners)
+│
+├─ science ─ structures · geometry · dynamics_analysis · dynabind ★novel
+├─ runners ─ sequence_embedding · structure_prediction · conformer_generation
+│            binding_prediction · docking · scoring        ← pluggable external models
+└─ data ──── datasets · benchmarks                         + pipelines · cli
 ```
+
+`pip install kinapse` is tiny; add only what you use — `kinapse[structures]`,
+`kinapse[dynamics]`, `kinapse[binding]`, `kinapse[all]`. The full module map is in
+[`docs/MODULES.md`](docs/MODULES.md), and adding your own model is a two-file job:
+[`docs/ADDING_A_MODEL.md`](docs/ADDING_A_MODEL.md).
 
 Every capability from the original `TCR_Metrics` is preserved — see
 [`docs/migration_from_tcr_metrics.md`](docs/migration_from_tcr_metrics.md) for the
@@ -150,7 +152,9 @@ tables). List them with `kinapse pipelines`; details in
 
 ## Docs
 
-- [`docs/architecture.md`](docs/architecture.md) — the five modules & data flow
+- [`docs/MODULES.md`](docs/MODULES.md) — the living module map (what exists, its extra, status)
+- [`docs/ADDING_A_MODEL.md`](docs/ADDING_A_MODEL.md) — plug in your own external model
+- [`docs/architecture.md`](docs/architecture.md) — the modules & data flow
 - [`docs/quickstart.md`](docs/quickstart.md) — worked examples
 - [`docs/pipelines.md`](docs/pipelines.md) — running & configuring pipelines
 - [`docs/scoring.md`](docs/scoring.md) — interface scoring of TCR-pMHC complexes (`kinapse.scoring` → ifscore)

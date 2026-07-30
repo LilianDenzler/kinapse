@@ -1,7 +1,7 @@
 ##cd /workspaces/Graphormer/openfold
 ##mamba env create -n openfold_env -f environment.yml
 #mamba activate openfold_env
-from kinapse.embedding.fasta import pdb_to_fasta
+from kinapse.sequence_embedding.fasta import pdb_to_fasta
 import os
 import sys
 from pathlib import Path
@@ -10,7 +10,7 @@ import openfold
 import subprocess
 import shlex
 import torch
-from kinapse.embedding.msa import run_pipeline_with_precomputed_alignments
+from kinapse.sequence_embedding.msa import run_pipeline_with_precomputed_alignments
 
 print("cuda_available:", torch.cuda.is_available(),
       "device_count:", torch.cuda.device_count(),

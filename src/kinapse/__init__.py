@@ -5,10 +5,10 @@ conformational-ensemble generation.
 The package is organised into five independently usable sub-packages:
 
 * :mod:`kinapse.structures`  — load & prep TCR / TCR-pMHC structures (the basis)
-* :mod:`kinapse.embedding`   — sequence embedders (MSA, Evoformer)
+* :mod:`kinapse.sequence_embedding`   — sequence embedders (MSA, Evoformer)
 * :mod:`kinapse.geometry`    — TCR inter-domain docking geometry
-* :mod:`kinapse.analysis`    — structure & MD analysis + dynamics metrics
-* :mod:`kinapse.generation`  — generative conformer sampling (DiG)
+* :mod:`kinapse.dynamics_analysis`    — structure & MD analysis + dynamics metrics
+* :mod:`kinapse.conformer_generation`  — generative conformer sampling (DiG)
 
 plus :mod:`kinapse.pipelines` (composable end-to-end workflows) and
 :mod:`kinapse.config` (path/config resolution).

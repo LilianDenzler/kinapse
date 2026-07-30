@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from kinapse.generation.dig_runner import runall
+from kinapse.conformer_generation.dig_runner import runall
 
 all_cory_pdbs="/mnt/larry/lilian/DATA/VANILLA_DIG_OUTPUTS/CORY_PDBS/input_pdbs_cory"
 output_dir="/mnt/larry/lilian/DATA/VANILLA_DIG_OUTPUTS/CORY_PDBS/output_dig_variations"

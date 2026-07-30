@@ -12,7 +12,7 @@ import os
 import numpy as np
 import pandas as pd
 from kinapse.structures.tcr import TCR
-from kinapse.analysis.rmsd_tm import rmsd_tm
+from kinapse.dynamics_analysis.rmsd_tm import rmsd_tm
 from kinapse.pipelines.best_method.run_test import  assess_screening, calc_best_metric
 
 def align_to_self(gttcr_pair, region_names, atom_names, outdir):

@@ -66,6 +66,23 @@ def _as_list(chains: _Chains) -> Optional[List[str]]:
     return [str(c) for c in chains]
 
 
+# kinapse surfaces ifscore's interface-geometry scorer as `geometry_scoring` so it
+# never clashes with the `kinapse.geometry` module (α/β domain angles).
+_SCORER_ALIASES = {"geometry_scoring": "geometry"}   # kinapse name -> ifscore name
+_SCORER_ALIASES_REV = {v: k for k, v in _SCORER_ALIASES.items()}
+
+
+def _resolve_scorer_names(scorers):
+    """Translate kinapse scorer aliases (e.g. 'geometry_scoring') to ifscore names."""
+    def tr(n):
+        return _SCORER_ALIASES.get(n.strip(), n.strip())
+    if scorers is None:
+        return scorers
+    if isinstance(scorers, str):
+        return ",".join(tr(s) for s in scorers.split(",") if s.strip())
+    return [tr(str(s)) for s in scorers]
+
+
 def score(
     model,
     native=None,
@@ -92,7 +109,7 @@ def score(
         native=str(native) if native else None,
         rec=_as_list(rec),
         lig=_as_list(lig),
-        scorers=scorers,
+        scorers=_resolve_scorer_names(scorers),
         timeout=timeout,
         chain_map=chain_map,
     )
@@ -123,7 +140,7 @@ def score_batch(
         manifest=str(manifest) if manifest else None,
         rec=_as_list(rec),
         lig=_as_list(lig),
-        scorers=scorers,
+        scorers=_resolve_scorer_names(scorers),
         n_jobs=n_jobs,
         timeout=timeout,
         strip=strip,
@@ -198,7 +215,7 @@ def score_tcr_pmhc(
         native=native,
         rec=rec,
         lig=lig,
-        scorers=scorers,
+        scorers=_resolve_scorer_names(scorers),
         timeout=timeout,
         chain_map=chain_map,
     )
@@ -210,7 +227,7 @@ def available_scorers() -> Dict[str, Dict[str, Any]]:
     actually provisioned and ready to run)."""
     ifs = _ifscore()
     return {
-        spec.name: {
+        _SCORER_ALIASES_REV.get(spec.name, spec.name): {
             "metrics": list(spec.metrics),
             "backend": spec.backend,
             "needs_native": spec.needs_native,

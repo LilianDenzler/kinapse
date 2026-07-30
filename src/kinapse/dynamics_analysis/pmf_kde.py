@@ -2,7 +2,7 @@ import numpy as np
 from scipy.stats import gaussian_kde
 import pandas as pd
 import os
-from kinapse.analysis.plotters import *
+from kinapse.dynamics_analysis.plotters import *
 from scipy.spatial.distance import jensenshannon
 
 # Constants

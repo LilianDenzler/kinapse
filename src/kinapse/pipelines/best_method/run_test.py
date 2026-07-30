@@ -1,15 +1,15 @@
 from kinapse.structures.tcr import *
 from kinapse.structures.io import write_pdb
 from kinapse.structures.ops import *
-from kinapse.analysis.embeddings import run_coords, run_ca_dist, run_dihedrals
+from kinapse.dynamics_analysis.embeddings import run_coords, run_ca_dist, run_dihedrals
 from kinapse.structures import io
-from kinapse.analysis.rmsd_tm import rmsd_tm
+from kinapse.dynamics_analysis.rmsd_tm import rmsd_tm
 from kinapse.structures.tcr import *
 from kinapse.structures.io import write_pdb
 from kinapse.structures.ops import *
 import pandas as pd
-from kinapse.analysis.PCA_methods import pca_project_two as pca_project
-from kinapse.generation.postprocess import process_output
+from kinapse.dynamics_analysis._legacy.PCA_methods import pca_project_two as pca_project
+from kinapse.conformer_generation.postprocess import process_output
 from kinapse.pipelines.best_method.analyse_metrics import get_best_metric
 import os
 from pathlib import Path

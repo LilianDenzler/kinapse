@@ -20,14 +20,15 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # Proves the package pip-installs from a clean checkout with its core +
-      # numbering + reduce extras (mdtraj / biotite / MDAnalysis / deeptime /
-      # anarcii all ship manylinux wheels). Heavy/optional stacks (torch,
-      # pymol, legacy anarci, modeller) are intentionally not installed here.
+      # Proves the package pip-installs from a clean checkout with its structures +
+      # dynamics extras (biopython / biotite / mdtraj / MDAnalysis / scikit-learn /
+      # scipy / matplotlib / deeptime / anarcii all ship manylinux wheels). Heavy or
+      # runner-provisioned stacks (torch, pymol, legacy anarci, modeller, ifscore)
+      # are intentionally not installed here.
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[numbering,reduce,dev]"
+          pip install -e ".[structures,dynamics,dev]"
 
       - name: Smoke tests
         run: pytest -q

@@ -1,7 +1,14 @@
 # Architecture
 
-`kinapse` is five sub-packages layered on a shared config/data foundation. Lower
-layers never import higher ones, so each is usable on its own.
+> **Implemented structure is now in [`MODULES.md`](MODULES.md)** (the canonical map:
+> lightweight core · science · pluggable-model runners · data). This file remains
+> the research brainstorm/roadmap. Naming note: `analysis`→`dynamics_analysis`,
+> `embedding`→`sequence_embedding`, `generation`→`conformer_generation`; `structure
+> modelling`→`structure_prediction`; "pMHC binding" (NetMHCpan-style) is distinct
+> from "TCR-pMHC binding" (`binding_prediction`). Adding a model: [`ADDING_A_MODEL.md`](ADDING_A_MODEL.md).
+
+`kinapse` is a lightweight core plus modular sub-packages (one concern → one module
+→ one extra). Lower layers never import higher ones, so each is usable on its own.
 
 ```
                  ┌─────────────────────────────────────────────┐

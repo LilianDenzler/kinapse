@@ -1,20 +1,22 @@
-from kinapse.analysis.embeddings.features import features_ca_dist
-from kinapse.analysis.embeddings.dim_reduction import fit_pca_linear, fit_kpca,fit_pca_linear, fit_kpca, fit_tica, fit_diffmap
-from kinapse.analysis.embeddings.metrics import trustworthiness, mantel_rmsd_vs_embedding
-from kinapse.analysis.embeddings.utils import save_npz, save_json
-from kinapse.analysis.plotters import plot_pca
-from kinapse.analysis.pmf_kde import *
+from kinapse.dynamics_analysis.embeddings.features import features_dihedrals
+from kinapse.dynamics_analysis.embeddings.dim_reduction import fit_pca_linear, fit_kpca,fit_pca_linear, fit_kpca, fit_tica, fit_diffmap
+
+from kinapse.dynamics_analysis.embeddings.metrics import trustworthiness, mantel_rmsd_vs_embedding
+from kinapse.dynamics_analysis.embeddings.utils import save_npz, save_json
+from kinapse.dynamics_analysis.plotters import plot_pca
+from kinapse.dynamics_analysis.pmf_kde import *
 import os
 
-def run(tv_gt, tv_pred, outdir, regions, max_pairs=None, reducer="pca",
-        n_components=2, fit_on="gt", pred_share=0.2, trust_k=10, lag=5,
-        subsample=None, mantel_perms=9999, mantel_method="spearman", seed=0,temperature = 300,xbins=50,ybins = 50):
+def run(tv_gt, tv_pred, outdir, regions, dihedrals=("phi","psi"), encode="sincos",
+        reducer="pca", n_components=2, fit_on="gt", pred_share=0.2, lag=5,
+        trust_k=10, subsample=None, mantel_perms=9999, mantel_method="spearman", seed=0,temperature = 300,xbins=50,ybins = 50):
     os.makedirs(outdir, exist_ok=True)
-    X_gt = features_ca_dist(tv_gt, regions, max_pairs=max_pairs, rng=seed)
+    X_gt = features_dihedrals(tv_gt, regions, dihedrals=dihedrals, encode=encode)
     if tv_pred==None:
         X_pr=None
     else:
-        X_pr = features_ca_dist(tv_pred, regions, max_pairs=max_pairs, rng=seed)
+        X_pr = features_dihedrals(tv_pred, regions, dihedrals=dihedrals, encode=encode)
+
     if reducer in ("pca","pca_weighted","concat","gt","pred"):
         model, Zg, Zp, info = fit_pca_linear(X_gt, X_pr, n_components, fit_on=fit_on, pred_share=pred_share)
     elif reducer == "tica":
@@ -22,12 +24,12 @@ def run(tv_gt, tv_pred, outdir, regions, max_pairs=None, reducer="pca",
         model, Zg, Zp, info = fit_tica(
         X_gt, X_pr,
         n_components=n_components,
-        lag=lag)
+        lag=lag
+    )
     elif reducer == "diffmap":
         model, Zg, Zp, info = fit_diffmap(X_gt, X_pr, n_components=n_components, epsilon=None, seed=seed, fit_on=fit_on)
     else:
         kernel = reducer.split("_",1)[1]
-        print("Using kernel:",kernel)
         model, Zg, Zp, info = fit_kpca(X_gt, X_pr, n_components, kernel=kernel, fit_on=fit_on)
     tw = {"gt": trustworthiness(X_gt, Zg, trust_k, subsample, seed),
           "pred": trustworthiness(X_pr, Zp, trust_k, subsample, seed) if X_pr is not None else None}
@@ -36,6 +38,6 @@ def run(tv_gt, tv_pred, outdir, regions, max_pairs=None, reducer="pca",
                                       permutations=mantel_perms, seed=seed,
                                       subsample_gt=subsample, subsample_pred=subsample)
 
-    save_npz(f"{outdir}/ca_dist_embedding.npz", Z_gt=Zg, Z_pred=Zp)
-    save_json(f"{outdir}/ca_dist_metrics.json", {"reducer": reducer, "info": {k:(v.tolist() if hasattr(v,'tolist') else v) for k,v in info.items()}, "trust": tw, "mantel": mantel})
+    save_npz(f"{outdir}/dihed_embedding.npz", Z_gt=Zg, Z_pred=Zp)
+    save_json(f"{outdir}/dihed_metrics.json", {"reducer": reducer, "info": {k:(v.tolist() if hasattr(v,'tolist') else v) for k,v in info.items()}, "trust": tw, "mantel": mantel})
     return Zg, Zp, info, tw, mantel

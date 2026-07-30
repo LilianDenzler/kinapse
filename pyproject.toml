@@ -12,33 +12,43 @@ license = { text = "MIT" }
 authors = [{ name = "Lilian Denzler" }]
 keywords = ["TCR", "immunology", "molecular-dynamics", "protein-structure", "IMGT", "pMHC"]
 
-# Core, pip-installable dependencies (the structures + analysis backbone).
-# NOTE: a few scientific deps are easiest via conda — see environment.yml.
+# Lightweight core — only what config / regions / runners and the light module
+# surface need. Every heavy scientific dependency lives in a per-module extra
+# below, so `pip install kinapse` stays tiny and you install just what you use.
 dependencies = [
     "numpy",
-    "scipy",
     "pandas",
-    "matplotlib",
     "pyyaml",
     "tqdm",
-    "scikit-learn",
-    "biopython",
-    "mdtraj",
-    "MDAnalysis",
-    "biotite",
 ]
 
 [project.optional-dependencies]
-# IMGT numbering (ANARCII is pip-installable; legacy ANARCI is bioconda — see docs)
-numbering = ["anarcii"]
-# advanced dimensionality reduction (TICA / diffusion maps)
-reduce = ["deeptime"]
-# sequence embedding (Evoformer path also needs an external OpenFold checkout + MMseqs2 binary)
-embed = ["torch"]
-# developer tooling
-dev = ["pytest", "ruff", "build"]
-# convenience aggregate of the pip-installable extras
-all = ["anarcii", "deeptime", "torch"]
+# --- native science modules (one extra per module) ---
+structures = ["biopython", "biotite", "mdtraj", "anarcii"]
+sequence   = ["biopython"]
+geometry   = ["biotite", "biopython", "MDAnalysis"]
+dynamics   = ["mdtraj", "MDAnalysis", "scikit-learn", "scipy", "matplotlib", "deeptime"]
+dynabind   = []
+# --- runner tiers: thin shims here; the actual external tools are provisioned
+#     per-tool in isolated envs via `uv` (see docs/ADDING_A_MODEL.md) ---
+generation = ["mdtraj"]
+modelling  = []
+binding    = []
+docking    = []
+scoring    = []   # interface scoring via the separate `ifscore` package (see docs/scoring.md)
+# --- data / research ---
+datasets   = []
+bench      = []
+# --- misc / tooling ---
+viz        = ["matplotlib"]
+dev        = ["pytest", "ruff", "build"]
+# --- back-compat aliases for older extra names ---
+numbering  = ["anarcii"]
+reduce     = ["deeptime"]
+embed      = ["torch"]
+# everything pip-installable at once
+all = ["biopython", "biotite", "mdtraj", "MDAnalysis", "scikit-learn", "scipy",
+       "matplotlib", "anarcii", "deeptime", "torch"]
 
 [project.scripts]
 kinapse = "kinapse.cli:main"

@@ -3,7 +3,7 @@ import argparse, os
 import numpy as np
 import mdtraj as md
 
-from kinapse.analysis.aligning import (
+from kinapse.dynamics_analysis.aligning import (
     _keys_for_selection, _atom_indices_from_keys, _tm_per_frame
 )
 from kinapse.regions import CDR_FR_RANGES, VARIABLE_RANGE

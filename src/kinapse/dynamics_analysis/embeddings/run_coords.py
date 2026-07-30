@@ -1,11 +1,11 @@
 import argparse, numpy as np
-from kinapse.analysis.embeddings.features import TVWrap
-from kinapse.analysis.embeddings.dim_reduction import fit_pca_linear, fit_kpca,fit_pca_linear, fit_kpca, fit_tica, fit_diffmap
+from kinapse.dynamics_analysis.embeddings.features import TVWrap
+from kinapse.dynamics_analysis.embeddings.dim_reduction import fit_pca_linear, fit_kpca,fit_pca_linear, fit_kpca, fit_tica, fit_diffmap
 
-from kinapse.analysis.embeddings.metrics import trustworthiness, mantel_rmsd_vs_embedding
-from kinapse.analysis.embeddings.utils import save_npz, save_json
-from kinapse.analysis.plotters import plot_pca
-from kinapse.analysis.pmf_kde import *
+from kinapse.dynamics_analysis.embeddings.metrics import trustworthiness, mantel_rmsd_vs_embedding
+from kinapse.dynamics_analysis.embeddings.utils import save_npz, save_json
+from kinapse.dynamics_analysis.plotters import plot_pca
+from kinapse.dynamics_analysis.pmf_kde import *
 import os
 
 def run(tv_gt, tv_pred, outdir, regions, atoms=("CA","C","N","O"),

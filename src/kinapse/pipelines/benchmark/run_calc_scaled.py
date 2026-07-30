@@ -3,20 +3,20 @@ import sys
 from kinapse.structures.tcr import *
 from kinapse.structures.io import write_pdb
 from kinapse.structures.ops import *
-from kinapse.analysis.embeddings import run_coords, run_ca_dist, run_dihedrals
+from kinapse.dynamics_analysis.embeddings import run_coords, run_ca_dist, run_dihedrals
 from kinapse.structures import io
-from kinapse.analysis.rmsd_tm import rmsd_tm
-from kinapse.analysis.rmsd_tm import run as run_rmsd_tm
-from kinapse.analysis.aligning import align_MD_same_TCR_profit  # still imported in case you need it
+from kinapse.dynamics_analysis.rmsd_tm import rmsd_tm
+from kinapse.dynamics_analysis.rmsd_tm import run as run_rmsd_tm
+from kinapse.dynamics_analysis.aligning import align_MD_same_TCR_profit  # still imported in case you need it
 
 import pandas as pd
-from kinapse.analysis.PCA_methods import pca_project_two as pca_project
-from kinapse.generation.postprocess import process_output
+from kinapse.dynamics_analysis._legacy.PCA_methods import pca_project_two as pca_project
+from kinapse.conformer_generation.postprocess import process_output
 from kinapse.pipelines.best_method.analyse_metrics import get_best_metric
 from kinapse.pipelines.benchmark.visualise_closest_frames_pymol import render_zoomed_morph_image
 from kinapse.pipelines.benchmark.Standardise_by_RMSD import rmsd_calibration_factor
-from kinapse.analysis.plotters import plot_pca
-from kinapse.analysis.pmf_kde import oriol_analysis
+from kinapse.dynamics_analysis.plotters import plot_pca
+from kinapse.dynamics_analysis.pmf_kde import oriol_analysis
 from kinapse.pipelines.benchmark.benchmark_table_maker import run_make_tables
 import os
 from pathlib import Path
