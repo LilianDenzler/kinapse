@@ -1,59 +1,6 @@
-# Architecture
-
-`kinapse` is five sub-packages layered on a shared config/data foundation. Lower
-layers never import higher ones, so each is usable on its own.
-
-```
-                 ┌─────────────────────────────────────────────┐
-   pipelines →   │  benchmark · best_method · analyse_md        │  end-to-end workflows
-                 └─────────────────────────────────────────────┘
-   ⑤ generation  DiG runner + postprocess  ─────────────┐
-   ④ analysis    align · features · reduce · metrics · pmf · plots
-   ③ geometry    α/β docking angles (per-structure & per-frame)
-   ② embedding   fasta · MSA · Evoformer
-   ① structures  TCR / TCR-pMHC loader, IMGT numbering, pairing, linkers   ← the basis
-                 ────────────────────────────────────────────────
-   foundation    config (paths)   ·   data (consensus refs, SO(3) tables)   ·   regions (IMGT)
-```
+# experiment ideas
 
 ## The five modules
-
-### DATASETS
-TCR-pMHC complexes:
-- structures:
-  - real, ground truth
-  - simulated from real ground truth (tfold, af3,etc.)
-  - simulated docking from real ground truth (HADDOCK, RosettaDock, etc.)
-  - negatives (switched TCR-pMHC pairs, same HLA classes etc.)
-- sequence only binding validation (ATLAS)
-- affinity measurements
-- delta G measurements
-- delta H, delta S measurements
-- MD trajectories
-- cross-reactivity measurements
-- mutation scanning data
-
-TCR unbound:
-- structures:
-  - real, ground truth
-  - simulated from real ground truth (tfold, af3,etc.)
-  - simulated docking from real ground truth (HADDOCK, RosettaDock, etc.)
-- MD trajectories
-
-pMHC unbound:
-- structures:
-  - real, ground truth
-  - simulated from real ground truth (tfold, af3,etc.)
-  - simulated docking from real ground truth (HADDOCK, RosettaDock, etc.)
-- MD trajectories
-
-TCR-pMHC-cd8 complexes:
-- structures:
-  - real, ground truth
-  - simulated from real ground truth (tfold, af3,etc.)
-  - simulated docking from real ground truth (HADDOCK, RosettaDock, etc.)
-
-
 
 ### 1 `structures` — the basis - Prep and loading
 Load a PDB, fix duplicate residue numbers, IMGT-renumber (ANARCI/ANARCII), pair
@@ -113,7 +60,6 @@ complexes: Docking Quality & Interface Accuracy
   - Rosetta,
   - FoldX,
   - OpenMM
-  -
 
 only TCR/ only pMHC:
 -

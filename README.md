@@ -153,6 +153,7 @@ tables). List them with `kinapse pipelines`; details in
 - [`docs/architecture.md`](docs/architecture.md) — the five modules & data flow
 - [`docs/quickstart.md`](docs/quickstart.md) — worked examples
 - [`docs/pipelines.md`](docs/pipelines.md) — running & configuring pipelines
+- [`docs/scoring.md`](docs/scoring.md) — interface scoring of TCR-pMHC complexes (`kinapse.scoring` → ifscore)
 - [`docs/migration_from_tcr_metrics.md`](docs/migration_from_tcr_metrics.md) — old→new map
 
 ## Tests

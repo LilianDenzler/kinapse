@@ -106,6 +106,49 @@ def cmd_pipelines(args) -> int:
     return 0
 
 
+def cmd_score(args) -> int:
+    from kinapse import scoring
+    if args.list_scorers:
+        try:
+            for name, info in scoring.available_scorers().items():
+                metrics = ", ".join(info["metrics"][:6]) + ("…" if len(info["metrics"]) > 6 else "")
+                print(f"  {name:10s} [{info['backend']}]  {metrics}")
+        except Exception as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        return 0
+    if not args.model:
+        print("error: a model PDB is required (or use --list-scorers)", file=sys.stderr)
+        return 2
+    rec, lig = args.rec, args.lig
+    if args.auto_chains or (rec is None and lig is None):
+        try:
+            rec, lig = scoring.infer_tcr_pmhc_chains(args.model, legacy_anarci=not args.new_anarci)
+        except Exception as e:
+            print(f"error: could not auto-derive chains: {e}", file=sys.stderr)
+            return 1
+        print(f"chains  receptor(TCR)={rec}  ligand(pMHC)={lig}")
+    try:
+        res = scoring.score(args.model, native=args.native, rec=rec, lig=lig,
+                            scorers=args.scorers, timeout=args.timeout)
+    except Exception as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    for k, v in res.items():
+        print(f"  {k}: {v}")
+    if args.out:
+        from pathlib import Path
+        p = Path(args.out)
+        if p.suffix.lower() == ".csv":
+            import pandas as pd
+            pd.DataFrame([res]).to_csv(p, index=False)
+        else:
+            import json
+            p.write_text(json.dumps(res, indent=2, default=str))
+        print(f"wrote {p}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="kinapse", description="TCR/TCR-pMHC dynamics toolkit")
     sub = p.add_subparsers(dest="command", required=True)
@@ -129,6 +172,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("pipelines", help="list migrated end-to-end workflows")
     sp.set_defaults(func=cmd_pipelines)
+
+    sp = sub.add_parser("score", help="score a TCR-pMHC complex via ifscore (optional dependency)")
+    sp.add_argument("model", nargs="?", default=None, help="model complex PDB")
+    sp.add_argument("--native", default=None, help="native reference PDB (for DockQ etc.)")
+    sp.add_argument("--rec", default=None, help="receptor chains, comma-separated (e.g. D,E)")
+    sp.add_argument("--lig", default=None, help="ligand chains, comma-separated (e.g. A,B,C)")
+    sp.add_argument("--auto-chains", action="store_true", help="derive rec/lig from the TCR (rec=TCR, lig=pMHC)")
+    sp.add_argument("--new-anarci", action="store_true", help="use ANARCII (pip) instead of legacy ANARCI when auto-deriving chains")
+    sp.add_argument("--scorers", default="default", help="scorer set: fast | default | all | name,name")
+    sp.add_argument("--timeout", type=float, default=600.0, help="per-scorer timeout (seconds)")
+    sp.add_argument("--out", default=None, help="write scores to a .json or .csv file")
+    sp.add_argument("--list-scorers", action="store_true", help="list scorers ifscore knows about and exit")
+    sp.set_defaults(func=cmd_score)
     return p
 
 
