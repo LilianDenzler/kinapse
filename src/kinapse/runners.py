@@ -1,9 +1,9 @@
 """kinapse.runners — the one engine for pluggable external models.
 
 Every "runner" tier (`sequence_embedding`, `structure_prediction`,
-`conformer_generation`, `binding_prediction`, `docking`, `scoring`) registers its
-external models here as :class:`RunnerSpec`s and runs them through one uniform
-API. This is the generalised form of the pattern ifscore uses for scorers:
+`conformer_generation`, `binding_prediction`, `docking`, `scoring`,
+`structure_analysis`) registers its external models here as :class:`RunnerSpec`s
+and runs them through one uniform API. This is the generalised form of the pattern ifscore uses for scorers:
 declare a spec, run it behind a JSON contract, keep it isolated. The scoring tier
 delegates to ifscore directly; other tiers use this engine.
 

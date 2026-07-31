@@ -35,6 +35,7 @@ generation = ["mdtraj"]
 modelling  = []
 binding    = []
 docking    = []
+structure_analysis = []   # STCRpy etc. run in their own external env (KINAPSE_STCRPY_PYTHON)
 scoring    = []   # interface scoring via the separate `ifscore` package (see docs/scoring.md)
 # --- data / research ---
 datasets   = []

@@ -30,15 +30,3 @@ def test_native_interface_on_example():
     assert res.n_interface_residues > 0
     assert "A" in res.interface_residues and "B" in res.interface_residues
     assert res.bsa is None or res.bsa > 0
-
-
-def test_stcrpy_backend_needs_stcrpy_env():
-    import importlib.util
-    import os
-    if importlib.util.find_spec("stcrpy") is not None or os.environ.get("KINAPSE_STCRPY_PYTHON"):
-        pytest.skip("stcrpy available; the missing-env path is not exercised")
-    from kinapse.structures.interface import analyze_interface
-    with pytest.raises(ImportError) as ei:
-        analyze_interface(None, ["A"], ["B"], method="stcrpy", pdb_path=str(PDB))
-    msg = str(ei.value).lower()
-    assert "stcrpy" in msg and "kinapse_stcrpy_python" in msg

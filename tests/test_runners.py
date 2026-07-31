@@ -41,10 +41,23 @@ def test_runner_error_is_captured_not_raised():
     ("conformer_generation", "dig"),
     ("sequence_embedding", "esm2"),
     ("scoring", "geometry_scoring"),
+    ("structure_analysis", "stcrpy"),
 ])
 def test_builtin_registries_load(tier, expected):
     from kinapse import runners
     assert expected in [s.name for s in runners.specs(tier)]
+
+
+def test_stcrpy_runner_without_env_returns_error():
+    import importlib.util
+    import os
+    if importlib.util.find_spec("stcrpy") is not None or os.environ.get("KINAPSE_STCRPY_PYTHON"):
+        pytest.skip("a STCRpy env is available; the missing-env path is not exercised")
+    from kinapse import runners
+    out = runners.run("structure_analysis", "stcrpy", {"pdb": "x.pdb"})
+    # native-backend errors are captured (never raised) with the install hint
+    assert out["status"] == "error"
+    assert "stcrpy" in out["error"].lower() and "kinapse_stcrpy_python" in out["error"].lower()
 
 
 def test_unknown_runner_raises_keyerror():

@@ -1,8 +1,8 @@
 # Adding your own model (any runner tier)
 
 Every runner tier — `sequence_embedding`, `structure_prediction`,
-`conformer_generation`, `binding_prediction`, `docking`, `scoring` — shares one
-mechanism (`kinapse.runners`). Adding a model is the same everywhere and needs no
+`conformer_generation`, `binding_prediction`, `docking`, `scoring`,
+`structure_analysis` — shares one mechanism (`kinapse.runners`). Adding a model is the same everywhere and needs no
 kinapse fork.
 
 A model is a **`RunnerSpec`** plus a **runner** (a function or an isolated script).

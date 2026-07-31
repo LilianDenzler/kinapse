@@ -21,7 +21,7 @@ fails when you actually use a feature that needs a missing dependency.
 ## Science modules
 | module | extra | purpose | status | key API |
 |---|---|---|---|---|
-| `kinapse.structures` | `[structures]` | load/prep TCR & pMHC (numbering, pairing, linkers, pmhc) + interface characterization | stable | `TCR`, `TCRPairView`, `TrajectoryView`, `load_tcr`, `analyze_interface`, `TCRpMHC.interface(method=native\|stcrpy)` |
+| `kinapse.structures` | `[structures]` | load/prep TCR & pMHC (numbering, pairing, linkers, pmhc) + interface characterization | stable | `TCR`, `TCRPairView`, `TrajectoryView`, `load_tcr`, `analyze_interface`, `TCRpMHC.interface()` |
 | `kinapse.geometry` | `[geometry]` | α/β inter-domain docking-angle geometry (the TCR's own α/β domains) | stable | `calc_tcr_geometry`, `calc_tcr_geometry_MD` |
 | `kinapse.dynamics_analysis` | `[dynamics]` | ensemble/MD analysis + metrics + structure features + reducers + PMF/JSD (MSM/NMA planned) | stable | `rmsd_tm`, `run_ca_dist`, `oriol_analysis`, `align_*` |
 | `kinapse.dynabind` | `[dynabind]` | ★ novel: ensemble → dynamics features → binding/cross-reactivity | scaffold | `featurize`, `predict` |
@@ -35,6 +35,7 @@ Each exposes `available()` (list specs) and `run(name, inputs)`; models are decl
 | `kinapse.conformer_generation` | `[generation]` | ensemble generators | stable API | `dig`, `alphaflow`, `bioemu`; native `postprocess` |
 | `kinapse.binding_prediction` | `[binding]` | TCR-pMHC binding/specificity | scaffold | `nettcr`, `tulip`, `mixtcrpred`, `stag`, `tcren` |
 | `kinapse.docking` | `[docking]` | docking engines | scaffold | `haddock`, `rosettadock`, `cluspro` |
+| `kinapse.structure_analysis` | `[structure_analysis]` | external TCR structure annotators | stable API | `stcrpy` (external env via `KINAPSE_STCRPY_PYTHON`) |
 | `kinapse.scoring` | `[scoring]` | interface scoring via **ifscore** | stable ✔ | `geometry_scoring`, `dockq`, `prodigy`, `foldx`, `rosetta`, `haddock`; energy `mmgbsa`/`mmpbsa`/`rosetta_flexddg`/`fep` (planned) |
 
 `kinapse.scoring` has a richer native API (`score`, `score_batch`, `score_tcr_pmhc`,
