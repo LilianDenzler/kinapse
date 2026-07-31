@@ -202,8 +202,8 @@ def apply_imgt_renumbering(
 
     for chain in model0:
         cid = chain.id
-        cmap = per_chain_map.get(cid, {})
-        if cmap=={}:
+        cmap = per_chain_map.get(cid) or {}   # non-TCR chains (MHC/peptide) map to None
+        if not cmap:
             print(cid, "not a tcr chain")
             continue
         for enum,residue in enumerate(chain):

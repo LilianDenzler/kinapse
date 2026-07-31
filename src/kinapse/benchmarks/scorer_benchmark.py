@@ -1,0 +1,324 @@
+"""Benchmark all interface scorers on ground-truth vs modelled vs negative complexes.
+
+Given three directories of TCR-pMHC complex PDBs:
+  * ``gt_dir``    — ground-truth (real) complexes, e.g. crystal structures minimised.
+  * ``model_dir`` — modelled versions of those complexes (filenames match ``gt_dir``).
+  * ``neg_dir``   — negative (artificial, non-existent) modelled complexes.
+
+it loads each complex to derive correct receptor/ligand chains (TCR = receptor,
+pMHC = ligand, via :func:`kinapse.scoring.infer_tcr_pmhc_chains`), scores everything
+with :mod:`kinapse.scoring` (ifscore), makes a leakage-aware (by complex id)
+train/test split, and answers, per scorer:
+
+  1. **Agreement** — do the modelled complexes score like their ground truth?
+     (Pearson/Spearman of GT-value vs model-value across complexes; mean |Δ|.)
+  2. **Discrimination** — do modelled real (positive) complexes score differently
+     from modelled negatives? (AUROC / AUPRC / Cohen's d on the TEST split.)
+
+Reference-based scorers (e.g. DockQ) only apply to model-vs-GT; reference-free
+scorers (geometry_scoring, prodigy, energy) drive the pos-vs-neg discrimination.
+Metric roles are inferred from the data (a metric is "reference-free" if it has
+values on the negatives). A scorer that is not provisioned yields NaN and is
+skipped, never breaking the run (ifscore's design).
+
+Run as a script::
+
+    python -m kinapse.benchmarks.scorer_benchmark \
+        --gt   /mnt/larry/lilian/DATA/TCR3d_datasets/TCR_complexes_openmm_minimised \
+        --model /mnt/larry/lilian/DATA/TCR3d_datasets/TCR_complexes_tfold_openmm_minimised \
+        --neg  /mnt/larry/lilian/DATA/TCR3d_datasets/negative_TCR_complexes_tfold/openmm_minimised \
+        --out  scorer_benchmark_out --scorers all -j 16
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import math
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
+
+# metric columns from ifscore look like "<scorer>__<metric>"; these suffixes are not metrics
+_NON_METRIC_SUFFIX = ("__status", "__runtime_s", "__error")
+
+
+# ----------------------------------------------------------------- discovery
+def _stem(p) -> str:
+    return Path(p).stem
+
+
+def discover(gt_dir, model_dir, neg_dir, limit: Optional[int] = None):
+    """Return (positives, negatives).
+
+    positives: list of (id, gt_path, model_path) for stems present in both dirs.
+    negatives: list of (id, neg_path).
+    """
+    gt = {_stem(p): p for p in sorted(Path(gt_dir).glob("*.pdb"))}
+    mod = {_stem(p): p for p in sorted(Path(model_dir).glob("*.pdb"))}
+    shared = sorted(set(gt) & set(mod))
+    positives = [(s, str(gt[s]), str(mod[s])) for s in shared]
+    negatives = [(_stem(p), str(p)) for p in sorted(Path(neg_dir).glob("*.pdb"))]
+    if limit:
+        positives = positives[:limit]
+        negatives = negatives[:limit]
+    return positives, negatives
+
+
+# ----------------------------------------------------------------- chains
+def resolve_chains(paths: List[str], legacy_anarci: bool = False,
+                   cache_path: Optional[str] = None) -> Dict[str, Tuple[List[str], List[str]]]:
+    """Map each PDB path -> (receptor_chains, ligand_chains). Cached to JSON; a
+    file that fails to parse/number is skipped (logged)."""
+    from kinapse.scoring import infer_tcr_pmhc_chains
+
+    cache: Dict[str, list] = {}
+    cpath = Path(cache_path) if cache_path else None
+    if cpath and cpath.exists():
+        cache = json.loads(cpath.read_text())
+
+    try:
+        from tqdm import tqdm
+    except Exception:  # pragma: no cover
+        def tqdm(x, **k):
+            return x
+
+    out: Dict[str, Tuple[List[str], List[str]]] = {}
+    todo = [p for p in paths if p not in cache
+            or (isinstance(cache.get(p), list) and cache[p][:1] == ['__error__'])]
+    for p in tqdm(todo, desc="chains", unit="pdb"):
+        try:
+            rec, lig = infer_tcr_pmhc_chains(p, legacy_anarci=legacy_anarci)
+            cache[p] = [rec, lig]
+        except Exception as e:  # noqa: BLE001
+            cache[p] = ["__error__", str(e)]
+        if cpath and (len(cache) % 25 == 0):
+            cpath.write_text(json.dumps(cache))
+    if cpath:
+        cpath.write_text(json.dumps(cache))
+    for p in paths:
+        v = cache.get(p)
+        if v and v[0] != "__error__":
+            out[p] = (v[0], v[1])
+    return out
+
+
+# ----------------------------------------------------------------- manifest + scoring
+def build_manifest(positives, negatives, chains) -> pd.DataFrame:
+    """One row per scored structure: role/id + ifscore manifest columns.
+
+    role ∈ {gt, model_pos, model_neg}. model_pos rows carry native=matching GT so
+    reference-based scorers (DockQ) run against the ground truth.
+    """
+    rows = []
+    for cid, gt_path, model_path in positives:
+        if gt_path in chains:
+            rec, lig = chains[gt_path]
+            rows.append(dict(role="gt", id=cid, group=cid, label=np.nan,
+                             model=gt_path, native="",
+                             receptor_chains=",".join(rec), ligand_chains=",".join(lig)))
+        if model_path in chains:
+            rec, lig = chains[model_path]
+            native = gt_path if gt_path in chains else ""
+            rows.append(dict(role="model_pos", id=cid, group=cid, label=1,
+                             model=model_path, native=native,
+                             receptor_chains=",".join(rec), ligand_chains=",".join(lig)))
+    for cid, neg_path in negatives:
+        if neg_path in chains:
+            rec, lig = chains[neg_path]
+            rows.append(dict(role="model_neg", id=cid, group=cid, label=0,
+                             model=neg_path, native="",
+                             receptor_chains=",".join(rec), ligand_chains=",".join(lig)))
+    return pd.DataFrame(rows)
+
+
+def run_scoring(manifest: pd.DataFrame, scorers="all", n_jobs: int = 8,
+                timeout: float = 900.0, out_dir: Optional[str] = None) -> pd.DataFrame:
+    """Score every manifest row with ifscore (one batch) and merge back the
+    role/id/label/group metadata (joined on the model path)."""
+    from kinapse import scoring
+
+    if manifest.empty:
+        raise RuntimeError("no scorable complexes — chain resolution failed for all inputs "
+                           "(are these TCR-pMHC complexes? see chains_cache.json).")
+    cols = ["model", "native", "receptor_chains", "ligand_chains"]
+    man_path = Path(out_dir or ".") / "_ifscore_manifest.csv"
+    man_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest[cols].to_csv(man_path, index=False)
+
+    scored = scoring.score_batch(manifest=str(man_path), scorers=scorers,
+                                 n_jobs=n_jobs, timeout=timeout)
+    meta = manifest[["model", "role", "id", "group", "label"]].assign(
+        _key=manifest["model"].astype(str))
+    scored = scored.assign(_key=scored["model"].astype(str))
+    # keep only scorer outputs ("<scorer>__<metric>") from ifscore — everything else
+    # (id/model/native/chains) already lives in `meta` and would collide on merge.
+    metric_cols = [c for c in scored.columns if "__" in c]
+    merged = meta.merge(scored[["_key"] + metric_cols], on="_key", how="left").drop(columns="_key")
+    return merged
+
+
+# ----------------------------------------------------------------- split
+def split_by_group(df: pd.DataFrame, test_frac: float = 0.3, seed: int = 0) -> pd.DataFrame:
+    """Assign each row a 'split' (train/test), grouping by complex id so a
+    complex's gt+model never straddle the split; stratified by label."""
+    rng = np.random.default_rng(seed)
+    df = df.copy()
+    # each group's label (positives -> 1, negatives -> 0; gt rows carry NaN but
+    # share their positive's group, so the whole group moves together)
+    grp_label = df.groupby("group")["label"].apply(
+        lambda s: s.dropna().iloc[0] if s.notna().any() else np.nan)
+    test_groups = set()
+    for lab in (0, 1):
+        groups = sorted(grp_label[grp_label == lab].index)
+        rng.shuffle(groups)
+        n_test = max(1, int(round(len(groups) * test_frac)))
+        test_groups |= set(groups[:n_test])
+    df["split"] = np.where(df["group"].isin(test_groups), "test", "train")
+    return df
+
+
+# ----------------------------------------------------------------- analyses
+def _metric_columns(df: pd.DataFrame) -> List[str]:
+    return [c for c in df.columns if "__" in c and not c.endswith(_NON_METRIC_SUFFIX)]
+
+
+def agreement_analysis(df: pd.DataFrame) -> pd.DataFrame:
+    """Per metric: correlation of GT value vs modelled-positive value across complexes."""
+    from scipy.stats import pearsonr, spearmanr
+
+    gt = df[df.role == "gt"].set_index("id")
+    mp = df[df.role == "model_pos"].set_index("id")
+    ids = gt.index.intersection(mp.index)
+    rows = []
+    for col in _metric_columns(df):
+        if col not in gt.columns or col not in mp.columns:
+            continue
+        x = pd.to_numeric(gt.loc[ids, col], errors="coerce")
+        y = pd.to_numeric(mp.loc[ids, col], errors="coerce")
+        m = x.notna() & y.notna()
+        n = int(m.sum())
+        if n < 3:
+            continue
+        pear = pearsonr(x[m], y[m])[0]
+        spear = spearmanr(x[m], y[m])[0]
+        rows.append(dict(metric=col, n=n, pearson=round(float(pear), 3),
+                         spearman=round(float(spear), 3),
+                         mean_abs_diff=round(float((y[m] - x[m]).abs().mean()), 4),
+                         gt_mean=round(float(x[m].mean()), 4),
+                         model_mean=round(float(y[m].mean()), 4)))
+    return pd.DataFrame(rows).sort_values("pearson", ascending=False, ignore_index=True) if rows else pd.DataFrame()
+
+
+def discrimination_analysis(df: pd.DataFrame) -> pd.DataFrame:
+    """Per reference-free metric: separate modelled positives (1) from negatives (0)
+    on the TEST split (AUROC/AUPRC/Cohen's d); threshold fit on TRAIN → test accuracy."""
+    from sklearn.metrics import average_precision_score, roc_auc_score
+
+    def cohens_d(a, b):
+        a, b = np.asarray(a, float), np.asarray(b, float)
+        na, nb = len(a), len(b)
+        if na < 2 or nb < 2:
+            return np.nan
+        sp = math.sqrt(((na - 1) * a.var(ddof=1) + (nb - 1) * b.var(ddof=1)) / (na + nb - 2))
+        return (a.mean() - b.mean()) / sp if sp > 0 else np.nan
+
+    labelled = df[df.label.isin([0, 1])]
+    rows = []
+    for col in _metric_columns(df):
+        sub = labelled[["label", "split", col]].copy()
+        sub[col] = pd.to_numeric(sub[col], errors="coerce")
+        sub = sub.dropna()
+        # reference-free only: needs both classes present (negatives have this metric)
+        if not {0, 1}.issubset(set(sub.label.unique())):
+            continue
+        tr, te = sub[sub.split == "train"], sub[sub.split == "test"]
+        if te.label.nunique() < 2 or len(te) < 6:
+            continue
+        auc = roc_auc_score(te.label, te[col])
+        auc_abs = max(auc, 1 - auc)                      # direction-agnostic power
+        ap = average_precision_score(te.label, te[col] if auc >= 0.5 else -te[col])
+        d = cohens_d(te.loc[te.label == 1, col], te.loc[te.label == 0, col])
+        # Youden-J threshold on train, accuracy on test (direction from AUC)
+        acc = np.nan
+        if len(tr) >= 6 and tr.label.nunique() == 2:
+            sign = 1.0 if roc_auc_score(tr.label, tr[col]) >= 0.5 else -1.0
+            vals = sign * tr[col].values
+            thr_grid = np.unique(vals)
+            best_j, best_thr = -1, thr_grid[0]
+            for t in thr_grid:
+                pred = (vals >= t).astype(int)
+                tp = ((pred == 1) & (tr.label.values == 1)).sum()
+                fn = ((pred == 0) & (tr.label.values == 1)).sum()
+                tn = ((pred == 0) & (tr.label.values == 0)).sum()
+                fp = ((pred == 1) & (tr.label.values == 0)).sum()
+                tpr = tp / (tp + fn) if (tp + fn) else 0
+                fpr = fp / (fp + tn) if (fp + tn) else 0
+                if tpr - fpr > best_j:
+                    best_j, best_thr = tpr - fpr, t
+            te_pred = ((sign * te[col].values) >= best_thr).astype(int)
+            acc = float((te_pred == te.label.values).mean())
+        rows.append(dict(metric=col, auroc=round(float(auc), 3), auroc_abs=round(float(auc_abs), 3),
+                         auprc=round(float(ap), 3), cohens_d=round(float(d), 3) if not np.isnan(d) else np.nan,
+                         test_accuracy=round(acc, 3) if not np.isnan(acc) else np.nan,
+                         n_train=int(len(tr)), n_test=int(len(te))))
+    return pd.DataFrame(rows).sort_values("auroc_abs", ascending=False, ignore_index=True) if rows else pd.DataFrame()
+
+
+# ----------------------------------------------------------------- orchestration
+def run_scorer_benchmark(gt_dir, model_dir, neg_dir, out_dir="scorer_benchmark_out",
+                         scorers="all", test_frac: float = 0.3, seed: int = 0,
+                         legacy_anarci: bool = False, limit: Optional[int] = None,
+                         n_jobs: int = 8, timeout: float = 900.0) -> Dict[str, pd.DataFrame]:
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+
+    positives, negatives = discover(gt_dir, model_dir, neg_dir, limit=limit)
+    print(f"discovered {len(positives)} matched positives, {len(negatives)} negatives")
+
+    all_paths = [p for _, g, m in positives for p in (g, m)] + [p for _, p in negatives]
+    chains = resolve_chains(all_paths, legacy_anarci=legacy_anarci,
+                            cache_path=str(out / "chains_cache.json"))
+    print(f"resolved chains for {len(chains)}/{len(set(all_paths))} structures")
+
+    manifest = build_manifest(positives, negatives, chains)
+    scored = run_scoring(manifest, scorers=scorers, n_jobs=n_jobs, timeout=timeout, out_dir=str(out))
+    scored = split_by_group(scored, test_frac=test_frac, seed=seed)
+    scored.to_csv(out / "scores.csv", index=False)
+
+    agree = agreement_analysis(scored)
+    disc = discrimination_analysis(scored)
+    agree.to_csv(out / "agreement.csv", index=False)
+    disc.to_csv(out / "discrimination.csv", index=False)
+
+    print("\n=== AGREEMENT (GT vs modelled positive) ===")
+    print(agree.to_string(index=False) if len(agree) else "  (no reference-free metrics with data)")
+    print("\n=== DISCRIMINATION (modelled positive vs negative, TEST split) ===")
+    print(disc.to_string(index=False) if len(disc) else "  (no reference-free metrics with data)")
+    return {"scores": scored, "agreement": agree, "discrimination": disc}
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description="Benchmark interface scorers: GT vs modelled vs negatives.")
+    ap.add_argument("--gt", required=True, help="ground-truth complex PDB directory")
+    ap.add_argument("--model", required=True, help="modelled complex PDB directory (filenames match GT)")
+    ap.add_argument("--neg", required=True, help="negative (artificial) modelled complex PDB directory")
+    ap.add_argument("--out", default="scorer_benchmark_out", help="output directory")
+    ap.add_argument("--scorers", default="all", help="ifscore scorer set (e.g. all, default, geometry_scoring)")
+    ap.add_argument("--test-frac", type=float, default=0.3)
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--new-anarci", action="store_true", help="use ANARCII (pip) for chains (default)")
+    ap.add_argument("--legacy-anarci", action="store_true", help="use legacy ANARCI (bioconda) for chains")
+    ap.add_argument("--limit", type=int, default=None, help="cap positives/negatives (for a quick run)")
+    ap.add_argument("-j", "--jobs", type=int, default=8)
+    args = ap.parse_args(argv)
+    run_scorer_benchmark(args.gt, args.model, args.neg, out_dir=args.out, scorers=args.scorers,
+                         test_frac=args.test_frac, seed=args.seed,
+                         legacy_anarci=args.legacy_anarci and not args.new_anarci,
+                         limit=args.limit, n_jobs=args.jobs)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

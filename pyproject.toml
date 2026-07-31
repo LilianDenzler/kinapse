@@ -39,7 +39,7 @@ structure_analysis = []   # STCRpy etc. run in their own external env (KINAPSE_S
 scoring    = []   # interface scoring via the separate `ifscore` package (see docs/scoring.md)
 # --- data / research ---
 datasets   = []
-bench      = []
+bench      = ["scikit-learn", "scipy", "matplotlib"]
 # --- misc / tooling ---
 viz        = ["matplotlib"]
 dev        = ["pytest", "ruff", "build"]
