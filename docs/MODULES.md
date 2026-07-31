@@ -21,7 +21,7 @@ fails when you actually use a feature that needs a missing dependency.
 ## Science modules
 | module | extra | purpose | status | key API |
 |---|---|---|---|---|
-| `kinapse.structures` | `[structures]` | load/prep TCR & pMHC (numbering, pairing, linkers, pmhc) + interface characterization | stable | `TCR`, `TCRPairView`, `TrajectoryView`, `load_tcr`, `analyze_interface`, `TCRpMHC.interface()` |
+| `kinapse.structures` | `[structures]` | load/prep TCR & pMHC (numbering, pairing, linkers, pmhc) + interface characterization | stable | `TCR`, `TCRPairView`, `TrajectoryView`, `load_tcr`, `analyze_interface`, `TCRpMHC.interface(method=native\|stcrpy)` |
 | `kinapse.geometry` | `[geometry]` | α/β inter-domain docking-angle geometry (the TCR's own α/β domains) | stable | `calc_tcr_geometry`, `calc_tcr_geometry_MD` |
 | `kinapse.dynamics_analysis` | `[dynamics]` | ensemble/MD analysis + metrics + structure features + reducers + PMF/JSD (MSM/NMA planned) | stable | `rmsd_tm`, `run_ca_dist`, `oriol_analysis`, `align_*` |
 | `kinapse.dynabind` | `[dynabind]` | ★ novel: ensemble → dynamics features → binding/cross-reactivity | scaffold | `featurize`, `predict` |

@@ -132,9 +132,13 @@ class TCRpMHC:
         Receptor = the TCR α/β chains; ligand = every other polymer chain (pMHC).
         Returns an :class:`kinapse.structures.interface.InterfaceResult` with the
         interface residues (per chain), atom-contact count, and buried surface area
-        (if ``freesasa`` is installed). ``method`` selects the engine: ``"native"``
-        (default; no external tools) or the optional ``"pisa"`` / ``"plip"`` /
-        ``"stcrpy"`` backends.
+        (if ``freesasa`` is installed). ``method`` selects the engine:
+
+        * ``"native"`` (default) — no external tools.
+        * ``"stcrpy"`` — additionally runs OPIG STCRpy *externally* (isolated env)
+          for TCR-aware, PLIP-typed interactions (H-bonds/salt bridges) and its
+          docking-geometry angles; set ``KINAPSE_STCRPY_PYTHON`` to a stcrpy env.
+        * ``"pisa"`` / ``"plip"`` — declared, not wired (raise with an install hint).
         """
         key = (method, cutoff, with_bsa)
         if getattr(self, "_iface_cache", None) is not None and getattr(self, "_iface_key", None) == key:
@@ -155,7 +159,8 @@ class TCRpMHC:
                 "(the TCR-only case has no interface to characterize)."
             )
         res = analyze_interface(self.tcr.original_structure, rec, lig,
-                                cutoff=cutoff, method=method, with_bsa=with_bsa)
+                                cutoff=cutoff, method=method, with_bsa=with_bsa,
+                                pdb_path=self.input_pdb)
         self._iface_cache, self._iface_key = res, key
         return res
 
