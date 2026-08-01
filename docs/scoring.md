@@ -26,7 +26,7 @@ Then provision the scorers you want (one-off; uses [uv](https://github.com/astra
 
 ```bash
 ifscore doctor                 # what is ready
-ifscore install dockq prodigy  # build each scorer's isolated env
+ifscore install all  # build every scorer's isolated env (geometry needs nothing)
 # the `geometry` scorer needs nothing and works immediately
 ```
 
@@ -79,6 +79,11 @@ kinapse score --list-scorers
 | `foldx` | isolated env | no | FoldX empirical ΔΔG (academic licence, see Install) |
 | `rosetta` | isolated env | no | Rosetta InterfaceAnalyzer: dG_separated, dSASA, shape complementarity, packstat |
 | `haddock` | isolated env | no | HADDOCK empirical docking score |
+| `esmif` | isolated env | no | ESM-IF1 inverse-folding log-likelihood (reference-free quality) |
+| `proteinmpnn` | isolated env | no | ProteinMPNN inverse-folding log-likelihood (reference-free) |
+| `voromqa` | isolated env | no | VoroMQA interface energy (Voronoi statistical potential) |
+| `voroif_gnn` | isolated env | no | VoroIF-GNN interface quality (CASP15-top GNN) |
+| `zrank` | isolated env | no | ZRANK / ZRANK2 docking-pose rescoring energy |
 
 Presets: `fast` = (geometry, dockq), `default` = (+ prodigy), `all` = everything
 registered. ifscore's registry is extensible — each scorer runs in its own env.

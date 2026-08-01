@@ -22,7 +22,7 @@ Install (ifscore is a separate, optional package)::
 
 Then provision the scorers you want (one-off; uses `uv`)::
 
-    ifscore install dockq prodigy rosetta   # the `geometry` scorer needs nothing
+    ifscore install all   # provision every scorer (the `geometry` scorer needs nothing)
 
 Licensed scorers you must supply yourself
 -----------------------------------------
@@ -54,7 +54,7 @@ _INSTALL_HINT = (
     "The 'ifscore' package is required for kinapse.scoring but is not installed.\n"
     '  pip install "ifscore @ git+https://github.com/LilianDenzler/scoring_functions"\n'
     "  (or a local checkout:  pip install -e /path/to/scoring_functions)\n"
-    "Then provision scorers once, e.g.:  ifscore install dockq prodigy"
+    "Then provision scorers once:  ifscore install all"
 )
 
 _Chains = Optional[Union[str, Sequence[str]]]

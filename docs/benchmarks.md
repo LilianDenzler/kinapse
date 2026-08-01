@@ -37,7 +37,7 @@ python -m kinapse.benchmarks.scorer_benchmark \
     --out   scorer_benchmark_out --scorers all -j 16
 # quick check: add  --limit 12 --scorers geometry_scoring   (geometry needs no provisioning)
 ```
-Needs `pip install "kinapse[bench,structures]"` + `ifscore` (and `ifscore install dockq prodigy …`
+Needs `pip install "kinapse[bench,structures]"` + `ifscore` (and `ifscore install all`
 for the non-geometry scorers). Or from Python:
 ```python
 from kinapse.benchmarks import run_scorer_benchmark

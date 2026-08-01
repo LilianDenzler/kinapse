@@ -21,7 +21,7 @@ See [`../../docs/benchmarks.md`](../../docs/benchmarks.md) for the method.
 ```bash
 pip install -e ".[bench,structures]"          # in the kinapse env
 pip install "ifscore @ git+https://github.com/LilianDenzler/scoring_functions"
-ifscore install dockq prodigy foldx rosetta   # geometry_scoring needs nothing
+ifscore install all   # provision every scorer (geometry_scoring needs nothing)
 ```
 
 ## Run

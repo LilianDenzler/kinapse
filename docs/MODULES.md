@@ -36,7 +36,7 @@ Each exposes `available()` (list specs) and `run(name, inputs)`; models are decl
 | `kinapse.binding_prediction` | `[binding]` | TCR-pMHC binding/specificity | scaffold | `nettcr`, `tulip`, `mixtcrpred`, `stag`, `tcren` |
 | `kinapse.docking` | `[docking]` | docking engines | scaffold | `haddock`, `rosettadock`, `cluspro` |
 | `kinapse.structure_analysis` | `[structure_analysis]` | external TCR structure annotators | stable API | `stcrpy` (external env via `KINAPSE_STCRPY_PYTHON`) |
-| `kinapse.scoring` | `[scoring]` | interface scoring via **ifscore** | stable ✔ | `geometry_scoring`, `dockq`, `prodigy`, `foldx`, `rosetta`, `haddock`; energy `mmgbsa`/`mmpbsa`/`rosetta_flexddg`/`fep` (planned) |
+| `kinapse.scoring` | `[scoring]` | interface scoring via **ifscore** | stable ✔ | `geometry_scoring`, `dockq`, `prodigy`, `foldx`, `rosetta`, `haddock`, `esmif`, `proteinmpnn`, `voromqa`, `voroif_gnn`, `zrank`; energy `mmgbsa`/`mmpbsa`/`rosetta_flexddg`/`fep` (planned) |
 
 `kinapse.scoring` has a richer native API (`score`, `score_batch`, `score_tcr_pmhc`,
 `available_scorers`) and delegates to the separate `ifscore` package — see
