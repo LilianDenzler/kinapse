@@ -195,16 +195,21 @@ def agreement_analysis(df: pd.DataFrame) -> pd.DataFrame:
     for col in _metric_columns(df):
         if col not in gt.columns or col not in mp.columns:
             continue
-        x = pd.to_numeric(gt.loc[ids, col], errors="coerce")
-        y = pd.to_numeric(mp.loc[ids, col], errors="coerce")
+        # .astype(float): pandas keeps bool/int columns as-is, but scipy's pearsonr
+        # rejects non-inexact dtypes (bool) — force float.
+        x = pd.to_numeric(gt.loc[ids, col], errors="coerce").astype(float)
+        y = pd.to_numeric(mp.loc[ids, col], errors="coerce").astype(float)
         m = x.notna() & y.notna()
         n = int(m.sum())
         if n < 3:
             continue
-        pear = pearsonr(x[m], y[m])[0]
-        spear = spearmanr(x[m], y[m])[0]
-        rows.append(dict(metric=col, n=n, pearson=round(float(pear), 3),
-                         spearman=round(float(spear), 3),
+        if x[m].nunique() > 1 and y[m].nunique() > 1:   # correlation undefined for constant input
+            pear = float(pearsonr(x[m], y[m])[0])
+            spear = float(spearmanr(x[m], y[m])[0])
+        else:
+            pear = spear = float("nan")
+        rows.append(dict(metric=col, n=n, pearson=round(pear, 3) if not math.isnan(pear) else np.nan,
+                         spearman=round(spear, 3) if not math.isnan(spear) else np.nan,
                          mean_abs_diff=round(float((y[m] - x[m]).abs().mean()), 4),
                          gt_mean=round(float(x[m].mean()), 4),
                          model_mean=round(float(y[m].mean()), 4)))
@@ -228,7 +233,7 @@ def discrimination_analysis(df: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for col in _metric_columns(df):
         sub = labelled[["label", "split", col]].copy()
-        sub[col] = pd.to_numeric(sub[col], errors="coerce")
+        sub[col] = pd.to_numeric(sub[col], errors="coerce").astype(float)  # bool -> float for sklearn/arith
         sub = sub.dropna()
         # reference-free only: needs both classes present (negatives have this metric)
         if not {0, 1}.issubset(set(sub.label.unique())):
