@@ -40,8 +40,8 @@ full old→new module map.
 
 ```bash
 git clone <your-repo-url> kinapse && cd kinapse
-./setup.sh          # creates the `kinapse` conda env + installs the package + runs smoke tests
-conda activate kinapse
+./setup.sh          # creates the `kinapse` env + installs the package + runs smoke tests
+conda activate kinapse       # or: micromamba activate kinapse  (setup.sh prints the exact command)
 kinapse info
 ```
 
@@ -51,7 +51,7 @@ to do it by hand?
 
 ```bash
 conda env create -f environment.yml      # env + package (numbering, reduce)
-conda activate kinapse
+conda activate kinapse                   # micromamba users: micromamba activate kinapse
 ```
 
 Pure-pip, no conda (if you can get the MD stack from wheels — works on Linux):

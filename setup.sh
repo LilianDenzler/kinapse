@@ -40,19 +40,19 @@ fi
 RUN=( "$SOLVER" run -n "$ENV_NAME" )
 echo ">> Verifying import"
 "${RUN[@]}" python -c "import kinapse; print('kinapse', kinapse.__version__, 'ready')"
-echo ">> Running smoke tests"
-"${RUN[@]}" pytest -q || echo "(smoke tests reported issues — see output above)"
+echo ">> Running smoke tests (PYTHONNOUSERSITE=1 to ignore stray ~/.local plugins)"
+"${RUN[@]}" env PYTHONNOUSERSITE=1 python -m pytest -q || echo "(smoke tests reported issues — see output above)"
 
 cat <<EOF
 
 Done. Activate the environment with:
 
-    conda activate ${ENV_NAME}
+    ${SOLVER} activate ${ENV_NAME}
     kinapse info
 
 Optional stacks (install only if you need them):
   * embedding (Evoformer):  pip install -e ".[embed]"   # pulls torch; also needs OpenFold + MMseqs2
-  * legacy ANARCI numbering: conda install -n ${ENV_NAME} -c bioconda anarci
+  * legacy ANARCI numbering: ${SOLVER} install -n ${ENV_NAME} -c bioconda anarci
   * PyMOL visualisation:     already in environment.yml (pymol-open-source)
-  * MODELLER (linkers):      conda install -n ${ENV_NAME} -c salilab modeller   # licensed
+  * MODELLER (linkers):      ${SOLVER} install -n ${ENV_NAME} -c salilab modeller   # licensed
 EOF

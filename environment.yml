@@ -1,11 +1,12 @@
-# Conda environment for kinapse.
+# Conda/mamba/micromamba environment for kinapse.
 #
 # Several scientific dependencies (biotite, ANARCI, PyMOL, ...) are most
-# reliably installed from conda-forge / bioconda. Create the env, then install
-# kinapse itself in editable mode:
+# reliably installed from conda-forge / bioconda. Easiest: run ./setup.sh (it
+# auto-detects conda/mamba/micromamba). By hand (swap `conda` for `micromamba`/
+# `mamba` if that's your tool):
 #
 #     conda env create -f environment.yml
-#     conda activate kinapse
+#     conda activate kinapse         # or: micromamba activate kinapse
 #     pip install -e ".[all,dev]"
 #
 # Ported and extended from the original TCR_Metrics env.sh.
