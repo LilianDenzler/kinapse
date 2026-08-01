@@ -55,3 +55,39 @@ def test_agreement_and_discrimination():
     dc = discrimination_analysis(df)
     assert (dc.metric == "geo__bsa").any()
     assert dc.loc[dc.metric == "geo__bsa", "auroc_abs"].iloc[0] > 0.85
+
+
+import pytest
+from pathlib import Path as _Path
+_PDB = _Path(__file__).resolve().parent.parent / "examples" / "data" / "example_tcr.pdb"
+
+
+def test_assign_tier_thresholds():
+    from kinapse.benchmarks import assign_tier
+    assert assign_tier(1.5, 0.9) == "HQ"
+    assert assign_tier(1.5) == "HQ"            # dockq unknown -> iRMSD only
+    assert assign_tier(3.0, 0.6) == "MQ"
+    assert assign_tier(4.9, 0.3) == "AQ"
+    assert assign_tier(7.0, 0.9) == "LQ"
+    assert assign_tier(None) is None
+
+
+def test_tiers_summary_counts():
+    from kinapse.benchmarks import tiers_summary
+    df = pd.DataFrame([
+        {"role": "model_pos", "tier": "HQ"}, {"role": "model_pos", "tier": "MQ"},
+        {"role": "model_pos", "tier": "HQ"}, {"role": "model_neg", "tier": None}])
+    ts = tiers_summary(df)
+    assert int(ts.loc[ts.tier == "HQ", "n"].iloc[0]) == 2
+    assert int(ts.loc[ts.tier == "MQ", "n"].iloc[0]) == 1
+
+
+@pytest.mark.skipif(not _PDB.exists(), reason="example PDB missing")
+def test_structural_self_agreement_is_hq():
+    import os
+    os.environ.setdefault("ANARCI_CPU", "1")
+    from kinapse.benchmarks import assign_tier, structural_agreement
+    s = structural_agreement(str(_PDB), str(_PDB), legacy_anarci=False)
+    assert s.get("struct__cdr_irmsd") is not None
+    assert s["struct__cdr_irmsd"] < 0.05            # identical structure -> ~0 Å
+    assert assign_tier(s["struct__cdr_irmsd"]) == "HQ"

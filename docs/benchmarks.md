@@ -3,6 +3,8 @@
 Benchmark every interface scorer on three sets of TCR-pMHC complexes and ask, per
 scorer: (1) do **modelled** complexes score like their **ground truth**, and
 (2) do modelled **real** complexes score differently from modelled **negatives**?
+Plus a structure-only check: (3) **how close is each model to its GT** (Cα iRMSD over
+the 6 CDRs → HQ/MQ/AQ/LQ tiers), independent of any scorer.
 
 ## Inputs
 Three directories of complex PDBs:
@@ -26,7 +28,24 @@ train/test; stratified by label). Then, per metric:
 - **Discrimination** — AUROC / AUPRC / Cohen's d separating modelled positives from
   negatives on the **test** split (threshold fit on train → test accuracy).
 
-Outputs to `out_dir`: `scores.csv`, `agreement.csv`, `discrimination.csv`, `chains_cache.json`.
+## Structural agreement (model vs GT)
+Independent of the scorers, each modelled positive is compared to its GT with the
+**same Kabsch region-superposition used in the ensemble analysis** (`kinapse.benchmarks.structural`):
+the kinapse loader IMGT-numbers both structures and identifies the CDR/FR regions, then
+per residue (matched by IMGT number) it computes Cα RMSDs —
+
+- per-CDR RMSD after aligning on that chain's **framework** (α-fwk → α-CDRs, β-fwk → β-CDRs),
+- per-CDR **local** RMSD (loop superposed on itself — conformation only),
+- **framework RMSD**, and
+- **Cα iRMSD over the 6 CDR loops** (aligned on the whole framework).
+
+`assign_tier` maps (Cα iRMSD, DockQ) → **HQ/MQ/AQ/LQ** (HQ ≤2 Å & DockQ ≥0.8; MQ ≤5 Å &
+≥0.49; AQ <5 Å & ≥0.23; else LQ; DockQ optional — omitted when the `dockq` scorer isn't run).
+This adds `struct__*` columns to the modelled-positive rows and a `tier` label; the HQ set
+is the subset of high-confidence model/GT pairs. Skip with `structural=False` / `--no-structural`.
+
+Outputs to `out_dir`: `scores.csv`, `agreement.csv`, `discrimination.csv`, `structural.csv`,
+`tiers.csv`, `chains_cache.json`.
 
 ## Run
 ```bash
@@ -42,5 +61,11 @@ for the non-geometry scorers). Or from Python:
 ```python
 from kinapse.benchmarks import run_scorer_benchmark
 res = run_scorer_benchmark(gt_dir, model_dir, neg_dir, out_dir="out", scorers="all")
-res["agreement"]; res["discrimination"]
+res["agreement"]; res["discrimination"]; res["tiers"]   # tiers omitted if structural=False
+```
+Structural agreement alone, for one pair:
+```python
+from kinapse.benchmarks import structural_agreement, assign_tier
+s = structural_agreement(model_pdb, gt_pdb)           # {"struct__cdr_irmsd": ..., ...}
+assign_tier(s["struct__cdr_irmsd"])                   # "HQ" / "MQ" / "AQ" / "LQ"
 ```

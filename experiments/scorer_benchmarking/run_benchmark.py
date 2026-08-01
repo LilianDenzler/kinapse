@@ -55,6 +55,20 @@ def make_plots(res, out_dir) -> None:
         plt.tight_layout()
         plt.savefig(out_dir / "agreement_pearson.png", dpi=130)
         plt.close()
+
+    tiers = res.get("tiers")
+    if tiers is not None and len(tiers):
+        order = {"HQ": 0, "MQ": 1, "AQ": 2, "LQ": 3, "untiered": 4}
+        t = tiers.sort_values("tier", key=lambda s: s.map(lambda x: order.get(x, 9)))
+        colors = {"HQ": "#16a34a", "MQ": "#65a30d", "AQ": "#d97706", "LQ": "#dc2626",
+                  "untiered": "#9ca3af"}
+        plt.figure(figsize=(5, 3.2))
+        plt.bar(t["tier"], t["n"], color=[colors.get(x, "#6b7280") for x in t["tier"]])
+        plt.ylabel("# modelled positives")
+        plt.title("Structural agreement: model-vs-GT quality tiers\n(Cα iRMSD over 6 CDRs + DockQ)")
+        plt.tight_layout()
+        plt.savefig(out_dir / "structural_tiers.png", dpi=130)
+        plt.close()
     print(f"wrote plots to {out_dir}")
 
 
@@ -70,13 +84,15 @@ def main(argv=None) -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("-j", "--jobs", type=int, default=16)
     ap.add_argument("--legacy-anarci", action="store_true", help="use bioconda ANARCI (default: ANARCII/pip)")
+    ap.add_argument("--no-structural", action="store_true",
+                    help="skip model-vs-GT Cα-iRMSD / HQ-MQ-AQ-LQ tiers")
     ap.add_argument("--plots", action="store_true", help="also write summary figures")
     args = ap.parse_args(argv)
 
     res = run_scorer_benchmark(
         args.gt, args.model, args.neg, out_dir=args.out, scorers=args.scorers,
         test_frac=args.test_frac, seed=args.seed, legacy_anarci=args.legacy_anarci,
-        limit=args.limit, n_jobs=args.jobs,
+        limit=args.limit, n_jobs=args.jobs, structural=not args.no_structural,
     )
     if args.plots:
         make_plots(res, Path(args.out) / "plots")

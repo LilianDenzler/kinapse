@@ -7,6 +7,9 @@ per scorer, measure:
    (Pearson/Spearman of GT-value vs model-value across complexes.)
 2. **Discrimination** — do modelled *real* complexes score differently from modelled
    *negatives*? (AUROC / AUPRC / Cohen's d on a leakage-aware test split.)
+3. **Structural agreement** — how close is each model to its GT? Cα iRMSD over the 6
+   CDR loops (kinapse loader identifies the CDRs) → **HQ/MQ/AQ/LQ** tiers + per-CDR RMSDs
+   (`structural.csv`, `tiers.csv`). Scorer-independent. Disable with `--no-structural`.
 
 Chains are loaded per complex (receptor = TCR α/β, ligand = pMHC). Reference-based
 scorers (DockQ) run model-vs-GT; reference-free scorers drive the discrimination.
@@ -33,4 +36,4 @@ python run_benchmark.py --limit 12 --scorers geometry_scoring --plots
 ANARCI_CPU=1 python run_benchmark.py --scorers all -j 16 --plots
 ```
 Outputs land in `results/`: `scores.csv`, `agreement.csv`, `discrimination.csv`,
-`chains_cache.json`, and `plots/` (if `--plots`).
+`structural.csv`, `tiers.csv`, `chains_cache.json`, and `plots/` (if `--plots`).

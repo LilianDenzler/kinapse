@@ -47,7 +47,7 @@ Each exposes `available()` (list specs) and `run(name, inputs)`; models are decl
 | module | extra | purpose | status | key API |
 |---|---|---|---|---|
 | `kinapse.datasets` | `[datasets]` | loaders (ATLAS, STCRDab, TCR3d, SKEMPI, VDJdb, IEDB, 10x, DMS) + leakage-aware splits | scaffold | `CATALOG`, `load`, `split` |
-| `kinapse.benchmarks` | `[bench]` | scorer benchmark (GT vs modelled vs negatives) + ensemble-quality (scaffold) | scorer bench ✔ | `run_scorer_benchmark`, `agreement_analysis`, `discrimination_analysis` |
+| `kinapse.benchmarks` | `[bench]` | scorer benchmark (GT vs modelled vs negatives) + model-vs-GT structural agreement (Cα iRMSD over 6 CDRs → HQ/MQ/AQ/LQ tiers) + ensemble-quality (scaffold) | scorer bench ✔ | `run_scorer_benchmark`, `agreement_analysis`, `discrimination_analysis`, `structural_agreement`, `assign_tier` |
 
 ## Cross-cutting
 - `kinapse.pipelines` — thin, named end-to-end workflows composing the modules (`benchmark`, `best_method`, `analyse_md`).

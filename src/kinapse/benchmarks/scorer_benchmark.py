@@ -267,10 +267,64 @@ def discrimination_analysis(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ----------------------------------------------------------------- orchestration
+def add_structural_agreement(scored, positives, legacy_anarci: bool = False):
+    """Add model-vs-GT Cα RMSDs (per-CDR, local, Cα iRMSD over the 6 CDRs) and an
+    HQ/MQ/AQ/LQ tier to the modelled-positive rows, using the kinapse loader."""
+    from .structural import assign_tier, structural_agreement
+    try:
+        from tqdm import tqdm
+    except Exception:  # pragma: no cover
+        def tqdm(x, **k):
+            return x
+
+    dq = {}
+    if "dockq__dockq" in scored.columns:
+        mp = scored[scored.role == "model_pos"]
+        dq = dict(zip(mp["id"], pd.to_numeric(mp["dockq__dockq"], errors="coerce")))
+
+    rows = []
+    for cid, gt_path, model_path in tqdm(positives, desc="structural", unit="pair"):
+        try:
+            s = structural_agreement(model_path, gt_path, legacy_anarci=legacy_anarci)
+        except Exception:  # noqa: BLE001
+            s = {}
+        if not s:
+            continue
+        s = dict(s)
+        s["id"] = cid
+        s["tier"] = assign_tier(s.get("struct__cdr_irmsd"), dq.get(cid))
+        rows.append(s)
+    if not rows:
+        return scored
+
+    sdf = pd.DataFrame(rows)
+    struct_cols = [c for c in sdf.columns if c != "id"]
+    scored = scored.merge(sdf, on="id", how="left")
+    scored.loc[scored.role != "model_pos", struct_cols] = np.nan   # model-vs-GT only
+    return scored
+
+
+def tiers_summary(scored) -> pd.DataFrame:
+    """HQ/MQ/AQ/LQ distribution among modelled positives (the validated pairs)."""
+    if "tier" not in scored.columns:
+        return pd.DataFrame()
+    mp = scored[scored.role == "model_pos"]
+    total = int(len(mp))
+    vc = mp["tier"].value_counts(dropna=True)
+    rows = [dict(tier=x, n=int(vc.get(x, 0)),
+                 fraction=round(int(vc.get(x, 0)) / total, 3) if total else 0.0)
+            for x in ("HQ", "MQ", "AQ", "LQ")]
+    n_un = int(mp["tier"].isna().sum())
+    if n_un:
+        rows.append(dict(tier="untiered", n=n_un, fraction=round(n_un / total, 3) if total else 0.0))
+    return pd.DataFrame(rows)
+
+
 def run_scorer_benchmark(gt_dir, model_dir, neg_dir, out_dir="scorer_benchmark_out",
                          scorers="all", test_frac: float = 0.3, seed: int = 0,
                          legacy_anarci: bool = False, limit: Optional[int] = None,
-                         n_jobs: int = 8, timeout: float = 900.0) -> Dict[str, pd.DataFrame]:
+                         n_jobs: int = 8, timeout: float = 900.0,
+                         structural: bool = True) -> Dict[str, pd.DataFrame]:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
@@ -285,6 +339,16 @@ def run_scorer_benchmark(gt_dir, model_dir, neg_dir, out_dir="scorer_benchmark_o
     manifest = build_manifest(positives, negatives, chains)
     scored = run_scoring(manifest, scorers=scorers, n_jobs=n_jobs, timeout=timeout, out_dir=str(out))
     scored = split_by_group(scored, test_frac=test_frac, seed=seed)
+
+    tiers = pd.DataFrame()
+    if structural:
+        scored = add_structural_agreement(scored, positives, legacy_anarci=legacy_anarci)
+        tiers = tiers_summary(scored)
+        tiers.to_csv(out / "tiers.csv", index=False)
+        sc = [c for c in scored.columns if c.startswith("struct__")]
+        sc += ["tier"] if "tier" in scored.columns else []
+        if sc:
+            scored[scored.role == "model_pos"][["id"] + sc].to_csv(out / "structural.csv", index=False)
     scored.to_csv(out / "scores.csv", index=False)
 
     agree = agreement_analysis(scored)
@@ -296,7 +360,12 @@ def run_scorer_benchmark(gt_dir, model_dir, neg_dir, out_dir="scorer_benchmark_o
     print(agree.to_string(index=False) if len(agree) else "  (no reference-free metrics with data)")
     print("\n=== DISCRIMINATION (modelled positive vs negative, TEST split) ===")
     print(disc.to_string(index=False) if len(disc) else "  (no reference-free metrics with data)")
-    return {"scores": scored, "agreement": agree, "discrimination": disc}
+    result = {"scores": scored, "agreement": agree, "discrimination": disc}
+    if structural:
+        print("\n=== STRUCTURAL TIERS (modelled positive vs GT: Cα iRMSD over 6 CDRs + DockQ) ===")
+        print(tiers.to_string(index=False) if len(tiers) else "  (no tiers — structural metrics unavailable)")
+        result["tiers"] = tiers
+    return result
 
 
 def main(argv=None) -> int:
@@ -312,11 +381,12 @@ def main(argv=None) -> int:
     ap.add_argument("--legacy-anarci", action="store_true", help="use legacy ANARCI (bioconda) for chains")
     ap.add_argument("--limit", type=int, default=None, help="cap positives/negatives (for a quick run)")
     ap.add_argument("-j", "--jobs", type=int, default=8)
+    ap.add_argument("--no-structural", action="store_true", help="skip model-vs-GT Cα-iRMSD/tiers")
     args = ap.parse_args(argv)
     run_scorer_benchmark(args.gt, args.model, args.neg, out_dir=args.out, scorers=args.scorers,
                          test_frac=args.test_frac, seed=args.seed,
                          legacy_anarci=args.legacy_anarci and not args.new_anarci,
-                         limit=args.limit, n_jobs=args.jobs)
+                         limit=args.limit, n_jobs=args.jobs, structural=not args.no_structural)
     return 0
 
 
