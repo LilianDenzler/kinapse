@@ -33,3 +33,6 @@ error.txt
 examples/out_*.pdb
 examples/geom_out/
 examples/out/
+
+# experiment outputs
+experiments/**/results/
