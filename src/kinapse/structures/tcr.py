@@ -28,7 +28,9 @@ from kinapse.regions import CDR_FR_RANGES, VARIABLE_RANGE
 from kinapse.structures.numbering.main import fix_duplicate_resseqs_by_insertion_code,apply_imgt_renumbering
 from kinapse.structures.numbering.tcr_pairing import pair_tcrs_by_interface
 
-from kinapse.geometry.calc_geometry_MD import run as calc_traj_angles
+# NB: calc_geometry_MD (MDAnalysis) is imported lazily inside calc_angles_traj() — it
+# pulls in MDAnalysis/h5py, which are only needed for trajectory angle calc, not for
+# loading/numbering a TCR. Keeps the loader importable without the MD stack.
 # -------------------------------------------------------------------
 # Trajectory view (thin helper over mdtraj)
 # -------------------------------------------------------------------
@@ -409,6 +411,7 @@ class TCRPairView:
             return self._cached_traj_view
 
     def calc_angles_traj(self):
+        from kinapse.geometry.calc_geometry_MD import run as calc_traj_angles  # lazy: MDAnalysis
         #write as tmp pdb and tmp xtc
         tmp_pdb = tempfile.NamedTemporaryFile(suffix=".pdb", delete=False)
         tmp_xtc = tempfile.NamedTemporaryFile(suffix=".xtc", delete=False)
