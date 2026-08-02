@@ -38,13 +38,31 @@ ANARCI_CPU=1 python run_benchmark.py --scorers all -j 16 --plots
 `-j` now parallelises chain resolution too (numbering is the bottleneck) — the full
 TCR3d set goes from ~90 min serial to a few minutes.
 
-### Use STCRpy instead of the native loader
-Identify chains + annotate CDRs with OPIG **STCRpy** (external env) rather than kinapse's
-loader — everything downstream (scoring, agreement, tiers) is identical:
-```bash
-export KINAPSE_STCRPY_PYTHON=/path/to/stcrpy-env/bin/python   # its own heavy env
-python run_benchmark.py --scorers all -j 16 --loader stcrpy --plots
-```
+Outputs land in `--out` (default `results/`): `scores.csv`, `agreement.csv`,
+`discrimination.csv`, `structural.csv`, `tiers.csv`, `chains_cache.json`,
+`_ifscore_manifest.csv`, and `plots/` (if `--plots`).
 
-Outputs land in `results/`: `scores.csv`, `agreement.csv`, `discrimination.csv`,
-`structural.csv`, `tiers.csv`, `chains_cache.json`, and `plots/` (if `--plots`).
+### Native loader vs STCRpy — run both and compare
+Identify chains + annotate CDRs with OPIG **STCRpy** (external env) instead of kinapse's
+loader; everything downstream (scoring, agreement, tiers) is computed identically, so the
+two runs are directly comparable.
+
+**Use a separate `--out` per run.** Each dir has its own `chains_cache.json`, which is keyed
+by file path only — if both runs shared a dir, the second would reuse the first run's chains
+(wrong loader) and overwrite its CSVs.
+
+```bash
+# 1) native loader
+ANARCI_CPU=1 python run_benchmark.py --scorers all -j 16 --plots --out results_native
+
+# 2) STCRpy loader (its own heavy env)
+export KINAPSE_STCRPY_PYTHON=/path/to/stcrpy-env/bin/python
+ANARCI_CPU=1 python run_benchmark.py --scorers all -j 16 --plots --loader stcrpy --out results_stcrpy
+
+# 3) compare them
+python compare_loaders.py results_native results_stcrpy --labels native stcrpy --out loader_comparison
+```
+`compare_loaders.py` diffs **coverage** (structures each loader could resolve, and which
+only one handled), **agreement** & **discrimination** per metric (side by side + Δ),
+**tiers**, and **per-complex Cα-iRMSD** (correlation, mean |Δ|, and a tier-agreement
+crosstab). It prints a summary and writes `comparison_*.csv` into `--out`.
