@@ -110,24 +110,33 @@ def resolve_chains(paths: List[str], legacy_anarci: bool = False,
         if cpath and (force or len(cache) % 25 == 0):
             cpath.write_text(json.dumps(cache))
 
-    if n_jobs and n_jobs > 1 and len(todo) > 1:
-        import multiprocessing as mp
-        from concurrent.futures import ProcessPoolExecutor, as_completed
-        ctx = mp.get_context("spawn")   # avoid fork+threaded-lib (ANARCI/BLAS) deadlocks
-        done = 0
-        with ProcessPoolExecutor(max_workers=n_jobs, mp_context=ctx) as ex:
-            futs = [ex.submit(_resolve_one, p, legacy_anarci, loader) for p in todo]
-            for fut in tqdm(as_completed(futs), total=len(futs), desc="chains", unit="pdb"):
-                p, rec = fut.result()
-                cache[p] = rec
-                done += 1
-                if done % 25 == 0:
-                    _flush(force=True)
-    else:
-        for p in tqdm(todo, desc="chains", unit="pdb"):
+    def _serial(items):
+        for p in tqdm(items, desc="chains", unit="pdb"):
             _, rec = _resolve_one(p, legacy_anarci, loader)
             cache[p] = rec
             _flush()
+
+    if n_jobs and n_jobs > 1 and len(todo) > 1:
+        import multiprocessing as mp
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        from concurrent.futures.process import BrokenProcessPool
+        ctx = mp.get_context("spawn")   # avoid fork+threaded-lib (ANARCI/BLAS) deadlocks
+        try:
+            done = 0
+            with ProcessPoolExecutor(max_workers=n_jobs, mp_context=ctx) as ex:
+                futs = [ex.submit(_resolve_one, p, legacy_anarci, loader) for p in todo]
+                for fut in tqdm(as_completed(futs), total=len(futs), desc="chains", unit="pdb"):
+                    p, rec = fut.result()
+                    cache[p] = rec
+                    done += 1
+                    if done % 25 == 0:
+                        _flush(force=True)
+        except (BrokenProcessPool, OSError, RuntimeError) as e:  # e.g. no importable __main__ (REPL/stdin)
+            print(f"[chains] parallel pool unavailable ({type(e).__name__}); falling back to serial. "
+                  "Run via a script or the CLI (not a REPL/stdin) for parallelism.")
+            _serial([p for p in todo if p not in cache or cache[p][:1] == ['__error__']])
+    else:
+        _serial(todo)
     _flush(force=True)
 
     out: Dict[str, Tuple[List[str], List[str]]] = {}

@@ -36,3 +36,5 @@ examples/out/
 
 # experiment outputs
 experiments/**/results/
+experiments/**/results_*/
+experiments/**/*_out/

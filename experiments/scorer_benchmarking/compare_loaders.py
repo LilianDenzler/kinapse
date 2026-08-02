@@ -61,7 +61,7 @@ def main(argv=None) -> int:
     ap.add_argument("dir_b", help="second results dir (e.g. results_stcrpy)")
     ap.add_argument("--labels", nargs=2, default=("a", "b"),
                     help="short labels for the two runs (default: a b)")
-    ap.add_argument("--out", default="loader_comparison", help="dir for comparison CSVs")
+    ap.add_argument("--out", default="comparison_out", help="dir for comparison CSVs")
     args = ap.parse_args(argv)
 
     A, B = Path(args.dir_a), Path(args.dir_b)

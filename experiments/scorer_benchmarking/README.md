@@ -60,7 +60,7 @@ export KINAPSE_STCRPY_PYTHON=/path/to/stcrpy-env/bin/python
 ANARCI_CPU=1 python run_benchmark.py --scorers all -j 16 --plots --loader stcrpy --out results_stcrpy
 
 # 3) compare them
-python compare_loaders.py results_native results_stcrpy --labels native stcrpy --out loader_comparison
+python compare_loaders.py results_native results_stcrpy --labels native stcrpy --out comparison_out
 ```
 `compare_loaders.py` diffs **coverage** (structures each loader could resolve, and which
 only one handled), **agreement** & **discrimination** per metric (side by side + Δ),
