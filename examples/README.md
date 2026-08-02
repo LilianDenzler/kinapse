@@ -10,6 +10,7 @@ Runnable, category-split tutorials. Run them from this `examples/` directory.
 | [04_dynamics_analysis.ipynb](04_dynamics_analysis.ipynb) | features → reduce → PMF + JSD | `kinapse[structures,dynamics]` |
 | [05_scoring.ipynb](05_scoring.ipynb) | interface scoring (ifscore) | `kinapse[scoring]` + ifscore |
 | [06_add_your_own_model.ipynb](06_add_your_own_model.ipynb) | the pluggable-runner engine | `kinapse` |
+| [07_benchmarking.ipynb](07_benchmarking.ipynb) | scorer benchmark, structural HQ/MQ/AQ/LQ tiers, native vs STCRpy loader | `kinapse[bench,structures]` (+ ifscore) |
 
 `data/` holds a small example TCR (`example_tcr.pdb`, an α/β Fv) and a **synthetic**
 ensemble (`example_ensemble.xtc`, generated from it) so the analysis notebooks run without

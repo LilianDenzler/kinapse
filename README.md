@@ -19,7 +19,7 @@ kinapse  (lightweight core: config · regions · runners)
 │
 ├─ science ─ structures · geometry · dynamics_analysis · dynabind ★novel
 ├─ runners ─ sequence_embedding · structure_prediction · conformer_generation
-│            binding_prediction · docking · scoring        ← pluggable external models
+│            binding_prediction · docking · scoring · structure_analysis (STCRpy)
 └─ data ──── datasets · benchmarks                         + pipelines · cli
 ```
 
@@ -81,7 +81,7 @@ Optional/external tooling, installed only if you use that feature:
 
 ## Quick start
 
-### ① Load & prep a structure (the basis)
+### Load & prep a structure (the basis)
 
 ```python
 from kinapse.structures import TCR, load_tcr
@@ -99,7 +99,7 @@ pMHC / full complexes are scaffolded (API-ready, TCR-only logic for now):
 from kinapse.structures import TCRpMHC          # loads the TCR half + a provisional pMHC
 ```
 
-### ③ Geometry
+### Geometry
 
 ```python
 from kinapse.geometry import calc_tcr_geometry, calc_tcr_geometry_MD
@@ -107,12 +107,35 @@ calc_tcr_geometry("1kgc.pdb", "out/")           # 6-parameter α/β docking geom
 df = calc_tcr_geometry_MD("1kgc.xtc", "1kgc.pdb")   # per-frame geometry DataFrame
 ```
 
-### ④ Analysis & dynamics metrics
+### Analysis & dynamics metrics
 
 ```python
 from kinapse.analysis import run_ca_dist, oriol_analysis, rmsd_tm
 # featurize → reduce → embedding-quality metrics → PMF/JSD, per region
 ```
+
+### Benchmark scorers & structural quality
+
+Benchmark every interface scorer over ground-truth vs modelled vs negative complexes
+(agreement + leakage-aware discrimination), and grade each model against its ground truth
+by **Cα iRMSD over the 6 CDRs → HQ/MQ/AQ/LQ tiers**:
+
+```python
+from kinapse.benchmarks import run_scorer_benchmark, structural_agreement, assign_tier
+
+res = run_scorer_benchmark(gt_dir, model_dir, neg_dir, out_dir="out", scorers="all", n_jobs=16)
+res["agreement"]; res["discrimination"]; res["tiers"]
+
+s = structural_agreement(model_pdb, gt_pdb)      # per-CDR + Cα iRMSD; loader="stcrpy" optional
+assign_tier(s["struct__cdr_irmsd"])              # "HQ" / "MQ" / "AQ" / "LQ"
+```
+
+Chain identification + CDR annotation is pluggable — kinapse's native loader or external
+**STCRpy** (`--loader stcrpy`, via `KINAPSE_STCRPY_PYTHON`). See
+[`docs/benchmarks.md`](docs/benchmarks.md), the ready-made drivers in
+[`experiments/scorer_benchmarking/`](experiments/scorer_benchmarking/), and the loader
+agreement check in [`experiments/loader_comparison/`](experiments/loader_comparison/).
+Tutorial: [`examples/07_benchmarking.ipynb`](examples/07_benchmarking.ipynb).
 
 ### CLI
 
@@ -158,6 +181,7 @@ tables). List them with `kinapse pipelines`; details in
 - [`docs/quickstart.md`](docs/quickstart.md) — worked examples
 - [`docs/pipelines.md`](docs/pipelines.md) — running & configuring pipelines
 - [`docs/scoring.md`](docs/scoring.md) — interface scoring of TCR-pMHC complexes (`kinapse.scoring` → ifscore)
+- [`docs/benchmarks.md`](docs/benchmarks.md) — scorer benchmark, structural HQ/MQ/AQ/LQ tiers, native vs STCRpy loader
 - [`docs/migration_from_tcr_metrics.md`](docs/migration_from_tcr_metrics.md) — old→new map
 
 ## Tests
