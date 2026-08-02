@@ -67,12 +67,29 @@ def discover(gt_dir, model_dir, neg_dir, limit: Optional[int] = None):
 
 
 # ----------------------------------------------------------------- chains
-def resolve_chains(paths: List[str], legacy_anarci: bool = False,
-                   cache_path: Optional[str] = None) -> Dict[str, Tuple[List[str], List[str]]]:
-    """Map each PDB path -> (receptor_chains, ligand_chains). Cached to JSON; a
-    file that fails to parse/number is skipped (logged)."""
-    from kinapse.scoring import infer_tcr_pmhc_chains
+def _resolve_one(path: str, legacy_anarci: bool, loader: str) -> Tuple[str, list]:
+    """Worker: (receptor, ligand) chains for one PDB via the chosen loader.
+    Returns (path, [rec, lig]) or (path, ['__error__', msg]). Module-level so it
+    is picklable for the process pool (spawn)."""
+    try:
+        if loader == "stcrpy":
+            from kinapse.structure_analysis.stcrpy import stcrpy_chains
+            rec, lig = stcrpy_chains(path)
+        else:
+            from kinapse.scoring import infer_tcr_pmhc_chains
+            rec, lig = infer_tcr_pmhc_chains(path, legacy_anarci=legacy_anarci)
+        return path, [rec, lig]
+    except Exception as e:  # noqa: BLE001
+        return path, ["__error__", str(e)]
 
+
+def resolve_chains(paths: List[str], legacy_anarci: bool = False,
+                   cache_path: Optional[str] = None, n_jobs: int = 1,
+                   loader: str = "native") -> Dict[str, Tuple[List[str], List[str]]]:
+    """Map each PDB path -> (receptor_chains, ligand_chains). Cached to JSON; a
+    file that fails to parse/number is skipped. ``loader`` selects the backend:
+    ``native`` (kinapse loader) or ``stcrpy`` (external OPIG STCRpy env). With
+    ``n_jobs > 1`` the numbering runs in a process pool (numbering is the bottleneck)."""
     cache: Dict[str, list] = {}
     cpath = Path(cache_path) if cache_path else None
     if cpath and cpath.exists():
@@ -84,19 +101,36 @@ def resolve_chains(paths: List[str], legacy_anarci: bool = False,
         def tqdm(x, **k):
             return x
 
-    out: Dict[str, Tuple[List[str], List[str]]] = {}
-    todo = [p for p in paths if p not in cache
+    # retry cached errors; dedupe so the pool doesn't score the same file twice
+    todo = [p for p in dict.fromkeys(paths)
+            if p not in cache
             or (isinstance(cache.get(p), list) and cache[p][:1] == ['__error__'])]
-    for p in tqdm(todo, desc="chains", unit="pdb"):
-        try:
-            rec, lig = infer_tcr_pmhc_chains(p, legacy_anarci=legacy_anarci)
-            cache[p] = [rec, lig]
-        except Exception as e:  # noqa: BLE001
-            cache[p] = ["__error__", str(e)]
-        if cpath and (len(cache) % 25 == 0):
+
+    def _flush(force=False):
+        if cpath and (force or len(cache) % 25 == 0):
             cpath.write_text(json.dumps(cache))
-    if cpath:
-        cpath.write_text(json.dumps(cache))
+
+    if n_jobs and n_jobs > 1 and len(todo) > 1:
+        import multiprocessing as mp
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        ctx = mp.get_context("spawn")   # avoid fork+threaded-lib (ANARCI/BLAS) deadlocks
+        done = 0
+        with ProcessPoolExecutor(max_workers=n_jobs, mp_context=ctx) as ex:
+            futs = [ex.submit(_resolve_one, p, legacy_anarci, loader) for p in todo]
+            for fut in tqdm(as_completed(futs), total=len(futs), desc="chains", unit="pdb"):
+                p, rec = fut.result()
+                cache[p] = rec
+                done += 1
+                if done % 25 == 0:
+                    _flush(force=True)
+    else:
+        for p in tqdm(todo, desc="chains", unit="pdb"):
+            _, rec = _resolve_one(p, legacy_anarci, loader)
+            cache[p] = rec
+            _flush()
+    _flush(force=True)
+
+    out: Dict[str, Tuple[List[str], List[str]]] = {}
     for p in paths:
         v = cache.get(p)
         if v and v[0] != "__error__":
@@ -272,9 +306,11 @@ def discrimination_analysis(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ----------------------------------------------------------------- orchestration
-def add_structural_agreement(scored, positives, legacy_anarci: bool = False):
+def add_structural_agreement(scored, positives, legacy_anarci: bool = False,
+                             loader: str = "native"):
     """Add model-vs-GT Cα RMSDs (per-CDR, local, Cα iRMSD over the 6 CDRs) and an
-    HQ/MQ/AQ/LQ tier to the modelled-positive rows, using the kinapse loader."""
+    HQ/MQ/AQ/LQ tier to the modelled-positive rows. ``loader`` picks the backend
+    used to identify the CDRs: ``native`` (kinapse) or ``stcrpy`` (external)."""
     from .structural import assign_tier, structural_agreement
     try:
         from tqdm import tqdm
@@ -290,7 +326,8 @@ def add_structural_agreement(scored, positives, legacy_anarci: bool = False):
     rows = []
     for cid, gt_path, model_path in tqdm(positives, desc="structural", unit="pair"):
         try:
-            s = structural_agreement(model_path, gt_path, legacy_anarci=legacy_anarci)
+            s = structural_agreement(model_path, gt_path, legacy_anarci=legacy_anarci,
+                                     loader=loader)
         except Exception:  # noqa: BLE001
             s = {}
         if not s:
@@ -329,7 +366,15 @@ def run_scorer_benchmark(gt_dir, model_dir, neg_dir, out_dir="scorer_benchmark_o
                          scorers="all", test_frac: float = 0.3, seed: int = 0,
                          legacy_anarci: bool = False, limit: Optional[int] = None,
                          n_jobs: int = 8, timeout: float = 900.0,
-                         structural: bool = True) -> Dict[str, pd.DataFrame]:
+                         structural: bool = True, loader: str = "native") -> Dict[str, pd.DataFrame]:
+    if loader not in ("native", "stcrpy"):
+        raise ValueError(f"loader must be 'native' or 'stcrpy', got {loader!r}")
+    if loader == "stcrpy":
+        from kinapse.structure_analysis import stcrpy as _stcrpy
+        if not _stcrpy.available():
+            raise RuntimeError(_stcrpy._HINT)   # clear install hint before we start numbering
+        print("loader: STCRpy (external) — chain ID + CDR annotation")
+
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
@@ -337,7 +382,7 @@ def run_scorer_benchmark(gt_dir, model_dir, neg_dir, out_dir="scorer_benchmark_o
     print(f"discovered {len(positives)} matched positives, {len(negatives)} negatives")
 
     all_paths = [p for _, g, m in positives for p in (g, m)] + [p for _, p in negatives]
-    chains = resolve_chains(all_paths, legacy_anarci=legacy_anarci,
+    chains = resolve_chains(all_paths, legacy_anarci=legacy_anarci, n_jobs=n_jobs, loader=loader,
                             cache_path=str(out / "chains_cache.json"))
     print(f"resolved chains for {len(chains)}/{len(set(all_paths))} structures")
 
@@ -347,7 +392,8 @@ def run_scorer_benchmark(gt_dir, model_dir, neg_dir, out_dir="scorer_benchmark_o
 
     tiers = pd.DataFrame()
     if structural:
-        scored = add_structural_agreement(scored, positives, legacy_anarci=legacy_anarci)
+        scored = add_structural_agreement(scored, positives, legacy_anarci=legacy_anarci,
+                                          loader=loader)
         tiers = tiers_summary(scored)
         tiers.to_csv(out / "tiers.csv", index=False)
         sc = [c for c in scored.columns if c.startswith("struct__")]
@@ -386,12 +432,16 @@ def main(argv=None) -> int:
     ap.add_argument("--legacy-anarci", action="store_true", help="use legacy ANARCI (bioconda) for chains")
     ap.add_argument("--limit", type=int, default=None, help="cap positives/negatives (for a quick run)")
     ap.add_argument("-j", "--jobs", type=int, default=8)
+    ap.add_argument("--loader", choices=("native", "stcrpy"), default="native",
+                    help="backend for chain ID + CDR annotation: native (kinapse) or "
+                         "stcrpy (external OPIG env; set KINAPSE_STCRPY_PYTHON)")
     ap.add_argument("--no-structural", action="store_true", help="skip model-vs-GT Cα-iRMSD/tiers")
     args = ap.parse_args(argv)
     run_scorer_benchmark(args.gt, args.model, args.neg, out_dir=args.out, scorers=args.scorers,
                          test_frac=args.test_frac, seed=args.seed,
                          legacy_anarci=args.legacy_anarci and not args.new_anarci,
-                         limit=args.limit, n_jobs=args.jobs, structural=not args.no_structural)
+                         limit=args.limit, n_jobs=args.jobs, structural=not args.no_structural,
+                         loader=args.loader)
     return 0
 
 

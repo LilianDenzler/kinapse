@@ -32,8 +32,19 @@ ifscore install all   # provision every scorer (geometry_scoring needs nothing)
 # quick check (no external scorers needed):
 python run_benchmark.py --limit 12 --scorers geometry_scoring --plots
 
-# full run (long: ANARCII + scoring over the whole set; resumable via chains cache):
+# full run (resumable via chains cache; -j parallelises chain numbering AND scoring):
 ANARCI_CPU=1 python run_benchmark.py --scorers all -j 16 --plots
 ```
+`-j` now parallelises chain resolution too (numbering is the bottleneck) — the full
+TCR3d set goes from ~90 min serial to a few minutes.
+
+### Use STCRpy instead of the native loader
+Identify chains + annotate CDRs with OPIG **STCRpy** (external env) rather than kinapse's
+loader — everything downstream (scoring, agreement, tiers) is identical:
+```bash
+export KINAPSE_STCRPY_PYTHON=/path/to/stcrpy-env/bin/python   # its own heavy env
+python run_benchmark.py --scorers all -j 16 --loader stcrpy --plots
+```
+
 Outputs land in `results/`: `scores.csv`, `agreement.csv`, `discrimination.csv`,
 `structural.csv`, `tiers.csv`, `chains_cache.json`, and `plots/` (if `--plots`).

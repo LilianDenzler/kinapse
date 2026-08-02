@@ -91,3 +91,48 @@ def test_structural_self_agreement_is_hq():
     assert s.get("struct__cdr_irmsd") is not None
     assert s["struct__cdr_irmsd"] < 0.05            # identical structure -> ~0 Å
     assert assign_tier(s["struct__cdr_irmsd"]) == "HQ"
+
+
+# ---- alternative loader (STCRpy) plumbing -----------------------------------
+def _load_stcrpy_runner():
+    """Import the external-only runner without leaking its sys.path mutation."""
+    import importlib.util, sys
+    saved = list(sys.path)
+    path = _Path(__file__).resolve().parent.parent / "src/kinapse/structure_analysis/_stcrpy_runner.py"
+    spec = importlib.util.spec_from_file_location("_stcrpy_runner_under_test", path)
+    mod = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(mod)
+    finally:
+        sys.path[:] = saved
+    return mod
+
+
+def test_stcrpy_fragment_id_parsing():
+    r = _load_stcrpy_runner()
+    assert r._parse_region("cdra1") == ("A_CDR1", "A")
+    assert r._parse_region("cdrb3") == ("B_CDR3", "B")
+    assert r._parse_region("fwa2") == ("A_FR2", "A")
+    assert r._parse_region("fwb4") == ("B_FR4", "B")
+    assert r._parse_region("cdrd1") == ("A_CDR1", "A")   # delta -> alpha side
+    assert r._parse_region("cdrg2") == ("B_CDR2", "B")   # gamma -> beta side
+    assert r._parse_region("junk") is None
+    assert r._parse_region("") is None
+
+
+def test_run_scorer_benchmark_rejects_bad_loader(tmp_path):
+    from kinapse.benchmarks import run_scorer_benchmark
+    with pytest.raises(ValueError):
+        run_scorer_benchmark("a", "b", "c", out_dir=str(tmp_path), loader="nope")
+
+
+def test_stcrpy_loader_requires_env(tmp_path, monkeypatch):
+    monkeypatch.delenv("KINAPSE_STCRPY_PYTHON", raising=False)
+    from kinapse.structure_analysis import stcrpy
+    if stcrpy.available():
+        pytest.skip("stcrpy is importable in this env")
+    from kinapse.benchmarks import run_scorer_benchmark
+    with pytest.raises(RuntimeError):                     # clear install hint before numbering
+        run_scorer_benchmark("a", "b", "c", out_dir=str(tmp_path), loader="stcrpy")
+    with pytest.raises(ImportError):
+        stcrpy.stcrpy_chains("nonexistent.pdb")

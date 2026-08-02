@@ -75,15 +75,30 @@ def _aligned_rmsd(mdl, gt, align_regions: List[str], rmsd_regions: List[str]) ->
     return round(_rmsd(P, np.array([gt[k] for k in rk])), 3)
 
 
-def structural_agreement(model_pdb, gt_pdb, legacy_anarci: bool = False) -> Dict[str, Optional[float]]:
-    """Cα RMSD metrics between a modelled complex and its ground truth (first pair)."""
+def _region_ca_maps(model_pdb, gt_pdb, legacy_anarci: bool, loader: str):
+    """Return (model, gt) {(region, chain, imgt): Cα xyz} dicts via the chosen loader."""
+    if loader == "stcrpy":
+        from kinapse.structure_analysis.stcrpy import region_ca_map
+        return region_ca_map(model_pdb), region_ca_map(gt_pdb)
     from kinapse.structures import TCR
-
     m = TCR(input_pdb=str(model_pdb), legacy_anarci=legacy_anarci)
     g = TCR(input_pdb=str(gt_pdb), legacy_anarci=legacy_anarci)
     if not m.pairs or not g.pairs:
+        return {}, {}
+    return _ca_by_region(m.pairs[0]), _ca_by_region(g.pairs[0])
+
+
+def structural_agreement(model_pdb, gt_pdb, legacy_anarci: bool = False,
+                         loader: str = "native") -> Dict[str, Optional[float]]:
+    """Cα RMSD metrics between a modelled complex and its ground truth (first pair).
+
+    ``loader`` selects the backend that IMGT-numbers the structures and identifies
+    the CDR/FR regions: ``native`` (kinapse loader) or ``stcrpy`` (external OPIG env).
+    Both produce the same {(region, chain, imgt): Cα} keys, so the RMSD maths is shared.
+    """
+    mdl, gt = _region_ca_maps(model_pdb, gt_pdb, legacy_anarci, loader)
+    if not mdl or not gt:
         return {}
-    mdl, gt = _ca_by_region(m.pairs[0]), _ca_by_region(g.pairs[0])
 
     out: Dict[str, Optional[float]] = {}
     for cdr in A_CDR:

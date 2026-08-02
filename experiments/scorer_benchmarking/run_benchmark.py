@@ -84,6 +84,9 @@ def main(argv=None) -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("-j", "--jobs", type=int, default=16)
     ap.add_argument("--legacy-anarci", action="store_true", help="use bioconda ANARCI (default: ANARCII/pip)")
+    ap.add_argument("--loader", choices=("native", "stcrpy"), default="native",
+                    help="backend for chain ID + CDR annotation: native (kinapse loader) "
+                         "or stcrpy (external OPIG env; set KINAPSE_STCRPY_PYTHON)")
     ap.add_argument("--no-structural", action="store_true",
                     help="skip model-vs-GT Cα-iRMSD / HQ-MQ-AQ-LQ tiers")
     ap.add_argument("--plots", action="store_true", help="also write summary figures")
@@ -93,6 +96,7 @@ def main(argv=None) -> int:
         args.gt, args.model, args.neg, out_dir=args.out, scorers=args.scorers,
         test_frac=args.test_frac, seed=args.seed, legacy_anarci=args.legacy_anarci,
         limit=args.limit, n_jobs=args.jobs, structural=not args.no_structural,
+        loader=args.loader,
     )
     if args.plots:
         make_plots(res, Path(args.out) / "plots")

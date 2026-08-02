@@ -14,7 +14,18 @@ Three directories of complex PDBs:
 
 Each complex is loaded to derive correct chains — receptor = TCR α/β, ligand = pMHC
 (everything else) — via `kinapse.scoring.infer_tcr_pmhc_chains` (ANARCII). Results are
-cached (`chains_cache.json`); a structure that can't be numbered is skipped.
+cached (`chains_cache.json`); a structure that can't be numbered is skipped. Numbering is
+the bottleneck, so it runs in a process pool (`-j` / `n_jobs`) — for the full TCR3d set
+this turns a ~90-min serial pass into a few minutes.
+
+### Loader backend (`--loader`)
+The loader that does chain identification **and** CDR annotation is pluggable:
+- `native` (default) — kinapse's own loader (ANARCII/ANARCI, no conda needed).
+- `stcrpy` — OPIG **STCRpy** run as a fully external model (chains via `get_VA`/`get_VB`
+  + antigen/MHC; CDRs via STCRpy's IMGT fragments). STCRpy is heavy (ANARCI models, PLIP,
+  OpenBabel) and is **never imported into kinapse** — point kinapse at its environment with
+  `export KINAPSE_STCRPY_PYTHON=/path/to/stcrpy-env/bin/python`. Both loaders emit the same
+  region keys, so agreement/discrimination/tiers are computed identically either way.
 
 ## What it computes
 Scoring is delegated to **ifscore** (`kinapse.scoring`). Reference-based scorers
@@ -31,8 +42,8 @@ train/test; stratified by label). Then, per metric:
 ## Structural agreement (model vs GT)
 Independent of the scorers, each modelled positive is compared to its GT with the
 **same Kabsch region-superposition used in the ensemble analysis** (`kinapse.benchmarks.structural`):
-the kinapse loader IMGT-numbers both structures and identifies the CDR/FR regions, then
-per residue (matched by IMGT number) it computes Cα RMSDs —
+the loader (native or `stcrpy`, see above) IMGT-numbers both structures and identifies the
+CDR/FR regions, then per residue (matched by IMGT number) it computes Cα RMSDs —
 
 - per-CDR RMSD after aligning on that chain's **framework** (α-fwk → α-CDRs, β-fwk → β-CDRs),
 - per-CDR **local** RMSD (loop superposed on itself — conformation only),
@@ -55,17 +66,22 @@ python -m kinapse.benchmarks.scorer_benchmark \
     --neg   /path/negative_TCR_complexes_tfold/openmm_minimised \
     --out   scorer_benchmark_out --scorers all -j 16
 # quick check: add  --limit 12 --scorers geometry_scoring   (geometry needs no provisioning)
+# use STCRpy for chains + CDRs instead of the native loader:
+export KINAPSE_STCRPY_PYTHON=/path/to/stcrpy-env/bin/python
+python -m kinapse.benchmarks.scorer_benchmark ... --loader stcrpy
 ```
-Needs `pip install "kinapse[bench,structures]"` + `ifscore` (and `ifscore install all`
-for the non-geometry scorers). Or from Python:
+`-j` parallelises both chain resolution and scoring. Needs
+`pip install "kinapse[bench,structures]"` + `ifscore` (and `ifscore install all` for the
+non-geometry scorers). Or from Python:
 ```python
 from kinapse.benchmarks import run_scorer_benchmark
-res = run_scorer_benchmark(gt_dir, model_dir, neg_dir, out_dir="out", scorers="all")
+res = run_scorer_benchmark(gt_dir, model_dir, neg_dir, out_dir="out", scorers="all",
+                           n_jobs=16, loader="native")   # or loader="stcrpy"
 res["agreement"]; res["discrimination"]; res["tiers"]   # tiers omitted if structural=False
 ```
 Structural agreement alone, for one pair:
 ```python
 from kinapse.benchmarks import structural_agreement, assign_tier
-s = structural_agreement(model_pdb, gt_pdb)           # {"struct__cdr_irmsd": ..., ...}
-assign_tier(s["struct__cdr_irmsd"])                   # "HQ" / "MQ" / "AQ" / "LQ"
+s = structural_agreement(model_pdb, gt_pdb, loader="native")   # or loader="stcrpy"
+assign_tier(s["struct__cdr_irmsd"])                            # "HQ" / "MQ" / "AQ" / "LQ"
 ```

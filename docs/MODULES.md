@@ -35,7 +35,7 @@ Each exposes `available()` (list specs) and `run(name, inputs)`; models are decl
 | `kinapse.conformer_generation` | `[generation]` | ensemble generators | stable API | `dig`, `alphaflow`, `bioemu`; native `postprocess` |
 | `kinapse.binding_prediction` | `[binding]` | TCR-pMHC binding/specificity | scaffold | `nettcr`, `tulip`, `mixtcrpred`, `stag`, `tcren` |
 | `kinapse.docking` | `[docking]` | docking engines | scaffold | `haddock`, `rosettadock`, `cluspro` |
-| `kinapse.structure_analysis` | `[structure_analysis]` | external TCR structure annotators | stable API | `stcrpy` (external env via `KINAPSE_STCRPY_PYTHON`) |
+| `kinapse.structure_analysis` | `[structure_analysis]` | external TCR structure annotators | stable API | `stcrpy` (external env via `KINAPSE_STCRPY_PYTHON`; also exposes `stcrpy_chains`/`region_ca_map` as an alternative benchmark loader) |
 | `kinapse.scoring` | `[scoring]` | interface scoring via **ifscore** | stable ✔ | `geometry_scoring`, `dockq`, `prodigy`, `foldx`, `rosetta`, `haddock`, `esmif`, `proteinmpnn`, `voromqa`, `voroif_gnn`, `zrank`; energy `mmgbsa`/`mmpbsa`/`rosetta_flexddg`/`fep` (planned) |
 
 `kinapse.scoring` has a richer native API (`score`, `score_batch`, `score_tcr_pmhc`,
@@ -47,7 +47,7 @@ Each exposes `available()` (list specs) and `run(name, inputs)`; models are decl
 | module | extra | purpose | status | key API |
 |---|---|---|---|---|
 | `kinapse.datasets` | `[datasets]` | loaders (ATLAS, STCRDab, TCR3d, SKEMPI, VDJdb, IEDB, 10x, DMS) + leakage-aware splits | scaffold | `CATALOG`, `load`, `split` |
-| `kinapse.benchmarks` | `[bench]` | scorer benchmark (GT vs modelled vs negatives) + model-vs-GT structural agreement (Cα iRMSD over 6 CDRs → HQ/MQ/AQ/LQ tiers) + ensemble-quality (scaffold) | scorer bench ✔ | `run_scorer_benchmark`, `agreement_analysis`, `discrimination_analysis`, `structural_agreement`, `assign_tier` |
+| `kinapse.benchmarks` | `[bench]` | scorer benchmark (GT vs modelled vs negatives; parallel chain resolution; native or `stcrpy` loader) + model-vs-GT structural agreement (Cα iRMSD over 6 CDRs → HQ/MQ/AQ/LQ tiers) + ensemble-quality (scaffold) | scorer bench ✔ | `run_scorer_benchmark`, `agreement_analysis`, `discrimination_analysis`, `structural_agreement`, `assign_tier` |
 
 ## Cross-cutting
 - `kinapse.pipelines` — thin, named end-to-end workflows composing the modules (`benchmark`, `best_method`, `analyse_md`).

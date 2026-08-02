@@ -9,6 +9,12 @@ Point kinapse at that environment with ``KINAPSE_STCRPY_PYTHON`` (recommended);
 otherwise the active interpreter is used if ``stcrpy`` is importable there; else a
 clear install hint is raised. Registered as the ``stcrpy`` runner in the
 ``structure_analysis`` tier (:mod:`kinapse.structure_analysis`).
+
+Besides the full ``run_stcrpy`` (geometry + interactions), this module exposes a
+light annotation path used as an **alternative loader** for the scorer benchmark:
+``stcrpy_chains`` (TCR α/β vs pMHC chain ids) and ``region_ca_map`` (per-CDR/FR Cα,
+keyed exactly like kinapse's native loader) — so ``kinapse.benchmarks`` can identify
+chains and annotate CDRs with STCRpy instead of the native kinapse loader.
 """
 from __future__ import annotations
 
@@ -18,7 +24,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 _HINT = (
     "STCRpy not found. It needs its own environment (heavy deps: ANARCI models, PLIP, OpenBabel):\n"
@@ -31,7 +37,7 @@ _RUNNER = str(Path(__file__).with_name("_stcrpy_runner.py"))
 
 
 def _python() -> Optional[List[str]]:
-    """The interpreter to run STCRpy with: env var → active interpreter → None."""
+    """The interpreter to run STCRpy with: env var -> active interpreter -> None."""
     env_py = os.environ.get("KINAPSE_STCRPY_PYTHON")
     if env_py:
         return [env_py]
@@ -45,18 +51,21 @@ def available() -> bool:
     return _python() is not None
 
 
-def run_stcrpy(pdb: str, timeout: float = 600.0) -> Dict[str, Any]:
+def run_stcrpy(pdb: str, timeout: float = 600.0, geometry: bool = True,
+               interactions: bool = True) -> Dict[str, Any]:
     """Run STCRpy on a PDB (TCR or TCR-pMHC) in its external env.
 
-    Returns a dict with STCRpy's docking-geometry ``angles`` and PLIP-typed
-    ``interactions`` (plus a ``status`` key). Raises :class:`ImportError` with an
-    install hint if no STCRpy environment is found.
+    Returns a dict with ``receptor_chains``/``ligand_chains`` and per-region ``regions``
+    (always), plus docking-geometry ``angles`` (if ``geometry``) and PLIP-typed
+    ``interactions`` (if ``interactions``), and a ``status`` key. Raises
+    :class:`ImportError` with an install hint if no STCRpy environment is found.
     """
     py = _python()
     if py is None:
         raise ImportError(_HINT)
+    payload = {"pdb": str(pdb), "geometry": geometry, "interactions": interactions}
     try:
-        proc = subprocess.run(py + [_RUNNER], input=json.dumps({"pdb": str(pdb)}),
+        proc = subprocess.run(py + [_RUNNER], input=json.dumps(payload),
                               capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return {"status": "timeout", "error": f"STCRpy exceeded {timeout}s"}
@@ -68,4 +77,43 @@ def run_stcrpy(pdb: str, timeout: float = 600.0) -> Dict[str, Any]:
         return {"status": "error", "error": f"stcrpy runner did not emit JSON: {proc.stdout[:300]!r}"}
 
 
-__all__ = ["run_stcrpy", "available"]
+def annotate(pdb: str, timeout: float = 300.0) -> Dict[str, Any]:
+    """Light STCRpy pass: chains + CDR/FR Cα only (no geometry, no PLIP).
+
+    Used as the benchmark's alternative loader. Raises on failure with STCRpy's error.
+    """
+    res = run_stcrpy(pdb, timeout=timeout, geometry=False, interactions=False)
+    if res.get("status") != "ok":
+        raise RuntimeError(f"STCRpy annotation failed for {pdb}: {res.get('error') or res}")
+    return res
+
+
+def stcrpy_chains(pdb: str, timeout: float = 300.0) -> Tuple[List[str], List[str]]:
+    """(receptor, ligand) original chain ids via STCRpy — TCR α/β vs peptide+MHC.
+
+    Drop-in for :func:`kinapse.scoring.infer_tcr_pmhc_chains` (the ``stcrpy`` loader)."""
+    res = annotate(pdb, timeout=timeout)
+    rec = list(res.get("receptor_chains") or [])
+    lig = list(res.get("ligand_chains") or [])
+    if not rec:
+        raise ValueError(f"STCRpy found no TCR (receptor) chains in {pdb}")
+    return rec, lig
+
+
+def region_ca_map(pdb: str, timeout: float = 300.0) -> Dict[tuple, "Any"]:
+    """{(region, chain, imgt_num): Cα xyz} via STCRpy — same keys as the native loader.
+
+    Feeds :func:`kinapse.benchmarks.structural_agreement` when ``loader='stcrpy'``."""
+    import numpy as np
+
+    res = annotate(pdb, timeout=timeout)
+    out: Dict[tuple, Any] = {}
+    for r in res.get("regions") or []:
+        try:
+            out[(r["region"], r["chain"], int(r["imgt"]))] = np.asarray(r["xyz"], dtype=float)
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
+__all__ = ["run_stcrpy", "available", "annotate", "stcrpy_chains", "region_ca_map"]
