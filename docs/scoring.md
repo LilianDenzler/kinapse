@@ -84,9 +84,31 @@ kinapse score --list-scorers
 | `voromqa` | isolated env | no | VoroMQA interface energy (Voronoi statistical potential) |
 | `voroif_gnn` | isolated env | no | VoroIF-GNN interface quality (CASP15-top GNN) |
 | `zrank` | isolated env | no | ZRANK / ZRANK2 docking-pose rescoring energy |
+| `dproqa` | **GPU** container | no | DProQA **predicted** DockQ (gated graph transformer; reference-free) |
+| `deeprank_gnn_esm` | **GPU** container | no | DeepRank-GNN-esm **predicted** fnat (GNN + ESM-2), averaged over crossing chain pairs |
 
 Presets: `fast` = (geometry, dockq), `default` = (+ prodigy), `all` = everything
 registered. ifscore's registry is extensible — each scorer runs in its own env.
+
+### GPU deep-learning predictors (`dproqa`, `deeprank_gnn_esm`)
+
+These two run in **CUDA containers** and are the only scorers that use the GPU — ifscore's
+container backend passes `--gpus all` (docker) / `--nv` (apptainer) automatically when a
+scorer is GPU-flagged; you set no device flag. The other scorers (incl. the neural `esmif` /
+`proteinmpnn`) are **CPU-only** by design, so a GPU gives no speedup there.
+
+Requirements:
+- **Docker or Apptainer + the NVIDIA container toolkit** on the host (and an NVIDIA driver).
+- The images built once: `ifscore install dproqa deeprank_gnn_esm` (tags `ifscore-dproqa:latest`,
+  `ifscore-deeprank-gnn-esm:latest`; DProQA bundles its weights, DeepRank bakes in ESM-2 ≈2.5 GB).
+  Because the build context (`containers/`) ships only in the ifscore **source**, run `ifscore
+  install` from a checkout / editable install — not a bare `pip install` of a release.
+- A current ifscore that registers them (older releases only have the 11 above).
+
+Cost note: they are **container-per-structure** and reload the model each call (~1.5–3 min per
+complex on an A6000), so adding them to `--scorers all` lengthens a benchmark substantially — the
+GPU accelerates the inference, not the per-call container/model startup. Include them when you
+want predicted DockQ / fnat, not as a speedup.
 
 ## Free-energy / physics-based scorers (energy ranking)
 

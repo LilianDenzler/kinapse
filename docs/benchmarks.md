@@ -33,6 +33,12 @@ Scoring is delegated to **ifscore** (`kinapse.scoring`). Reference-based scorers
 energy) drive discrimination. A metric's role is inferred from the data (reference-free
 = has values on the negatives). Unprovisioned scorers yield NaN and are skipped.
 
+`--scorers all` includes the two **GPU** deep-learning predictors `dproqa` (predicted DockQ)
+and `deeprank_gnn_esm` (predicted fnat) *if their CUDA images are built* — the GPU is used
+automatically (ifscore adds `--gpus all`). They are container-per-structure and slow
+(~1.5–3 min/complex), so they lengthen the run a lot; see [`scoring.md`](scoring.md). Every
+other scorer is CPU-only, so no GPU speedup — a GPU only adds these two predictors' outputs.
+
 A **leakage-aware split** groups by complex id (a complex's GT + model never straddle
 train/test; stratified by label). Then, per metric:
 - **Agreement** — Pearson/Spearman of GT-value vs model-value across complexes, + mean |Δ|.

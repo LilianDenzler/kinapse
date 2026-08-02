@@ -49,6 +49,20 @@ for _spec in [
                description="ZRANK / ZRANK2 docking-pose rescoring energy.",
                outputs=("zrank_score",)),
 
+    # --- GPU deep-learning predictors (ifscore container backend; auto --gpus all) ---
+    RunnerSpec(name="dproqa", tier="scoring", backend="container", status="stable",
+               description="DProQA predicted DockQ (gated graph transformer, reference-free complex QA). "
+                           "GPU container — provision with `ifscore install dproqa`.",
+               outputs=("pred_dockq",),
+               tags=("predictor", "dl", "gnn", "gpu"),
+               homepage="https://github.com/jianlin-cheng/DProQA"),
+    RunnerSpec(name="deeprank_gnn_esm", tier="scoring", backend="container", status="stable",
+               description="DeepRank-GNN-esm predicted fnat (GNN + ESM-2), averaged over crossing "
+                           "chain pairs. GPU container — provision with `ifscore install deeprank_gnn_esm`.",
+               outputs=("drgnn_fnat", "drgnn_fnat_max", "n_pairs_scored"),
+               tags=("predictor", "dl", "gnn", "esm", "gpu"),
+               homepage="https://github.com/haddocking/DeepRank-GNN-esm"),
+
     # --- physics-based free-energy scorers (ensemble / MD; heavy, GPU) ---
     RunnerSpec(name="mmgbsa", tier="scoring", backend="container", status="planned",
                description="MM-GBSA end-point ΔG over short MD (OpenMM/Amber). Ensemble-averaged "
