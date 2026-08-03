@@ -48,6 +48,15 @@ Outputs land in `--out` (default `results/`): `scores.csv`, `agreement.csv`,
 everything already done and only finishes the remainder. Use `--score-chunk N` to control
 how often scoring checkpoints (default `max(jobs,16)`; smaller = more frequent saves).
 
+**Peek while it runs.** `plot_from_cache.py` analyses whatever is cached *so far* — read-only,
+safe to run against a live job (don't re-run the benchmark into the same `--out`, that races):
+```bash
+python plot_from_cache.py --out results_native      # writes results_native/partial/{agreement,discrimination}.csv + plots
+```
+Note the manifest scores all positives before the negatives, so **discrimination stays empty
+until scoring reaches the negatives** — agreement (GT vs model) shows up as soon as a few
+complete pairs are scored.
+
 ### Native loader vs STCRpy — run both and compare
 Identify chains + annotate CDRs with OPIG **STCRpy** (external env) instead of kinapse's
 loader; everything downstream (scoring, agreement, tiers) is computed identically, so the
