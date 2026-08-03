@@ -89,6 +89,8 @@ def main(argv=None) -> int:
                          "or stcrpy (external OPIG env; set KINAPSE_STCRPY_PYTHON)")
     ap.add_argument("--no-structural", action="store_true",
                     help="skip model-vs-GT Cα-iRMSD / HQ-MQ-AQ-LQ tiers")
+    ap.add_argument("--score-chunk", type=int, default=None,
+                    help="structures per scoring checkpoint (default max(jobs,16))")
     ap.add_argument("--plots", action="store_true", help="also write summary figures")
     args = ap.parse_args(argv)
 
@@ -96,7 +98,7 @@ def main(argv=None) -> int:
         args.gt, args.model, args.neg, out_dir=args.out, scorers=args.scorers,
         test_frac=args.test_frac, seed=args.seed, legacy_anarci=args.legacy_anarci,
         limit=args.limit, n_jobs=args.jobs, structural=not args.no_structural,
-        loader=args.loader,
+        loader=args.loader, score_chunk=args.score_chunk,
     )
     if args.plots:
         make_plots(res, Path(args.out) / "plots")

@@ -42,6 +42,12 @@ Outputs land in `--out` (default `results/`): `scores.csv`, `agreement.csv`,
 `discrimination.csv`, `structural.csv`, `tiers.csv`, `chains_cache.json`,
 `_ifscore_manifest.csv`, and `plots/` (if `--plots`).
 
+**Resumable.** Chains, scoring, and structural all checkpoint to disk
+(`chains_cache.json`, `scores_cache/part_*.csv`, `structural_cache.csv`). If a run dies
+(reboot, kill, OOM), just re-run the **same command into the same `--out`** — it skips
+everything already done and only finishes the remainder. Use `--score-chunk N` to control
+how often scoring checkpoints (default `max(jobs,16)`; smaller = more frequent saves).
+
 ### Native loader vs STCRpy — run both and compare
 Identify chains + annotate CDRs with OPIG **STCRpy** (external env) instead of kinapse's
 loader; everything downstream (scoring, agreement, tiers) is computed identically, so the

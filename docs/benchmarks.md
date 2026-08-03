@@ -62,7 +62,20 @@ This adds `struct__*` columns to the modelled-positive rows and a `tier` label; 
 is the subset of high-confidence model/GT pairs. Skip with `structural=False` / `--no-structural`.
 
 Outputs to `out_dir`: `scores.csv`, `agreement.csv`, `discrimination.csv`, `structural.csv`,
-`tiers.csv`, `chains_cache.json`.
+`tiers.csv`, `chains_cache.json`, plus the resumable caches `scores_cache/` and
+`structural_cache.csv`.
+
+## Resumable — a crash costs at most one chunk
+The three expensive phases all checkpoint to disk, so re-running into the **same `--out`**
+picks up where it left off (only the final `scores.csv`/analyses/plots are written at the end):
+- **chains** → `chains_cache.json` (already-numbered structures are skipped; errors retried).
+- **scoring** → scored in chunks of `--score-chunk` (default `max(jobs,16)`); each chunk is
+  written atomically to `scores_cache/part_*.csv` as it completes. A resume scores only the
+  structures not yet cached; a chunk killed mid-write leaves no file and simply re-scores.
+- **structural** → per-pair Cα-RMSDs stream to `structural_cache.csv`; cached pairs are skipped.
+
+Resume with the **same `--scorers`** (a mismatch is warned about — cached rows keep their old
+columns). Verified: a resumed/partially-recovered run reproduces a fresh run value-for-value.
 
 ## Run
 ```bash

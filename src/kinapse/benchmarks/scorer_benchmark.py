@@ -177,21 +177,71 @@ def build_manifest(positives, negatives, chains) -> pd.DataFrame:
 
 
 def run_scoring(manifest: pd.DataFrame, scorers="all", n_jobs: int = 8,
-                timeout: float = 900.0, out_dir: Optional[str] = None) -> pd.DataFrame:
-    """Score every manifest row with ifscore (one batch) and merge back the
-    role/id/label/group metadata (joined on the model path)."""
+                timeout: float = 900.0, out_dir: Optional[str] = None,
+                chunk_size: Optional[int] = None) -> pd.DataFrame:
+    """Score every manifest row with ifscore and merge back role/id/label metadata.
+
+    **Checkpointed & resumable.** The manifest is scored in chunks; each chunk's raw
+    ifscore output is written atomically to ``<out>/scores_cache/part_*.csv`` as soon
+    as it completes. Re-running into the same ``out_dir`` loads that cache and scores
+    only the structures still missing, so a crash costs at most one chunk. ``chunk_size``
+    defaults to ``max(n_jobs, 16)`` — big enough to keep the pool busy, small enough to
+    checkpoint often. Resume with the **same** ``scorers`` (a mismatch is warned about).
+    """
     from kinapse import scoring
 
     if manifest.empty:
         raise RuntimeError("no scorable complexes — chain resolution failed for all inputs "
                            "(are these TCR-pMHC complexes? see chains_cache.json).")
-    cols = ["model", "native", "receptor_chains", "ligand_chains"]
-    man_path = Path(out_dir or ".") / "_ifscore_manifest.csv"
-    man_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest[cols].to_csv(man_path, index=False)
 
-    scored = scoring.score_batch(manifest=str(man_path), scorers=scorers,
-                                 n_jobs=n_jobs, timeout=timeout)
+    out = Path(out_dir or ".")
+    cache_dir = out / "scores_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cols = ["model", "native", "receptor_chains", "ligand_chains"]
+
+    marker = cache_dir / "_scorers.txt"
+    if marker.exists() and marker.read_text().strip() != str(scorers).strip():
+        print(f"[scoring] WARNING: scores_cache was built with scorers={marker.read_text().strip()!r} "
+              f"but this run asked for {str(scorers)!r}. Cached structures keep their old columns; "
+              "use a fresh --out for a clean set.")
+
+    # load any prior chunks; skip structures already scored (keyed by model path)
+    cached_frames, done = [], set()
+    for p in sorted(cache_dir.glob("part_*.csv")):
+        try:
+            cf = pd.read_csv(p)
+            cached_frames.append(cf)
+            done.update(cf["model"].astype(str))
+        except Exception:  # noqa: BLE001 - a truncated part is ignored (its rows re-score)
+            continue
+
+    todo = manifest[~manifest["model"].astype(str).isin(done)].reset_index(drop=True)
+    if done:
+        print(f"[scoring] resume: {len(done)} structures cached, {len(todo)} to score")
+
+    chunk = int(chunk_size) if chunk_size else max(int(n_jobs), 16)
+    next_idx = len(list(cache_dir.glob("part_*.csv")))
+    man_path = out / "_ifscore_manifest.csv"
+    n_todo = len(todo)
+    for start in range(0, n_todo, chunk):
+        part = todo.iloc[start:start + chunk]
+        part[cols].to_csv(man_path, index=False)
+        scored_part = scoring.score_batch(manifest=str(man_path), scorers=scorers,
+                                          n_jobs=n_jobs, timeout=timeout)
+        dst = cache_dir / f"part_{next_idx:05d}.csv"
+        tmp = dst.with_suffix(".csv.tmp")
+        scored_part.to_csv(tmp, index=False)
+        tmp.replace(dst)                       # atomic: a killed write leaves no part file
+        cached_frames.append(scored_part)
+        next_idx += 1
+        print(f"[scoring] {min(start + chunk, n_todo)}/{n_todo} scored → checkpoint {dst.name}")
+    marker.write_text(str(scorers))
+
+    if not cached_frames:
+        raise RuntimeError("scoring produced no results (see scores_cache/).")
+    scored = pd.concat(cached_frames, ignore_index=True, sort=False).drop_duplicates(
+        subset="model", keep="first")
+
     meta = manifest[["model", "role", "id", "group", "label"]].assign(
         _key=manifest["model"].astype(str))
     scored = scored.assign(_key=scored["model"].astype(str))
@@ -316,10 +366,15 @@ def discrimination_analysis(df: pd.DataFrame) -> pd.DataFrame:
 
 # ----------------------------------------------------------------- orchestration
 def add_structural_agreement(scored, positives, legacy_anarci: bool = False,
-                             loader: str = "native"):
+                             loader: str = "native", cache_path: Optional[str] = None):
     """Add model-vs-GT Cα RMSDs (per-CDR, local, Cα iRMSD over the 6 CDRs) and an
     HQ/MQ/AQ/LQ tier to the modelled-positive rows. ``loader`` picks the backend
-    used to identify the CDRs: ``native`` (kinapse) or ``stcrpy`` (external)."""
+    used to identify the CDRs: ``native`` (kinapse) or ``stcrpy`` (external).
+
+    **Checkpointed & resumable.** Per-pair Cα-RMSDs are cached to ``cache_path``
+    (rewritten atomically as pairs complete); a re-run skips pairs already there.
+    Tiers are (re)computed from the current DockQ so a resume stays consistent.
+    """
     from .structural import assign_tier, structural_agreement
     try:
         from tqdm import tqdm
@@ -330,10 +385,33 @@ def add_structural_agreement(scored, positives, legacy_anarci: bool = False,
     dq = {}
     if "dockq__dockq" in scored.columns:
         mp = scored[scored.role == "model_pos"]
-        dq = dict(zip(mp["id"], pd.to_numeric(mp["dockq__dockq"], errors="coerce")))
+        dq = dict(zip(mp["id"].astype(str), pd.to_numeric(mp["dockq__dockq"], errors="coerce")))
 
-    rows = []
+    cache = Path(cache_path) if cache_path else None
+    computed: Dict[str, dict] = {}       # id -> {struct__*: value}  (tier recomputed below)
+    if cache and cache.exists():
+        try:
+            cdf = pd.read_csv(cache)
+            scol = [c for c in cdf.columns if c.startswith("struct__")]
+            for _, r in cdf.iterrows():
+                computed[str(r["id"])] = {c: r[c] for c in scol}
+        except Exception:  # noqa: BLE001
+            computed = {}
+
+    def _flush():
+        if not cache:
+            return
+        rows_ = [{"id": k, **v} for k, v in computed.items()]
+        tmp = cache.with_suffix(".csv.tmp")
+        pd.DataFrame(rows_).to_csv(tmp, index=False)
+        tmp.replace(cache)                # atomic
+
+    if computed:
+        print(f"[structural] resume: {len(computed)} pairs cached")
+    n_new = 0
     for cid, gt_path, model_path in tqdm(positives, desc="structural", unit="pair"):
+        if str(cid) in computed:
+            continue
         try:
             s = structural_agreement(model_path, gt_path, legacy_anarci=legacy_anarci,
                                      loader=loader)
@@ -341,15 +419,21 @@ def add_structural_agreement(scored, positives, legacy_anarci: bool = False,
             s = {}
         if not s:
             continue
-        s = dict(s)
-        s["id"] = cid
-        s["tier"] = assign_tier(s.get("struct__cdr_irmsd"), dq.get(cid))
-        rows.append(s)
-    if not rows:
-        return scored
+        computed[str(cid)] = {k: v for k, v in s.items() if k.startswith("struct__")}
+        n_new += 1
+        if n_new % 5 == 0:
+            _flush()
+    _flush()
 
+    if not computed:
+        return scored
+    rows = [dict(id=cid, **d, tier=assign_tier(d.get("struct__cdr_irmsd"), dq.get(cid)))
+            for cid, d in computed.items()]
     sdf = pd.DataFrame(rows)
+    sdf["id"] = sdf["id"].astype(str)
     struct_cols = [c for c in sdf.columns if c != "id"]
+    scored = scored.copy()
+    scored["id"] = scored["id"].astype(str)            # match sdf id dtype for the merge
     scored = scored.merge(sdf, on="id", how="left")
     scored.loc[scored.role != "model_pos", struct_cols] = np.nan   # model-vs-GT only
     return scored
@@ -375,7 +459,8 @@ def run_scorer_benchmark(gt_dir, model_dir, neg_dir, out_dir="scorer_benchmark_o
                          scorers="all", test_frac: float = 0.3, seed: int = 0,
                          legacy_anarci: bool = False, limit: Optional[int] = None,
                          n_jobs: int = 8, timeout: float = 900.0,
-                         structural: bool = True, loader: str = "native") -> Dict[str, pd.DataFrame]:
+                         structural: bool = True, loader: str = "native",
+                         score_chunk: Optional[int] = None) -> Dict[str, pd.DataFrame]:
     if loader not in ("native", "stcrpy"):
         raise ValueError(f"loader must be 'native' or 'stcrpy', got {loader!r}")
     if loader == "stcrpy":
@@ -396,13 +481,14 @@ def run_scorer_benchmark(gt_dir, model_dir, neg_dir, out_dir="scorer_benchmark_o
     print(f"resolved chains for {len(chains)}/{len(set(all_paths))} structures")
 
     manifest = build_manifest(positives, negatives, chains)
-    scored = run_scoring(manifest, scorers=scorers, n_jobs=n_jobs, timeout=timeout, out_dir=str(out))
+    scored = run_scoring(manifest, scorers=scorers, n_jobs=n_jobs, timeout=timeout,
+                         out_dir=str(out), chunk_size=score_chunk)
     scored = split_by_group(scored, test_frac=test_frac, seed=seed)
 
     tiers = pd.DataFrame()
     if structural:
         scored = add_structural_agreement(scored, positives, legacy_anarci=legacy_anarci,
-                                          loader=loader)
+                                          loader=loader, cache_path=str(out / "structural_cache.csv"))
         tiers = tiers_summary(scored)
         tiers.to_csv(out / "tiers.csv", index=False)
         sc = [c for c in scored.columns if c.startswith("struct__")]
@@ -444,13 +530,16 @@ def main(argv=None) -> int:
     ap.add_argument("--loader", choices=("native", "stcrpy"), default="native",
                     help="backend for chain ID + CDR annotation: native (kinapse) or "
                          "stcrpy (external OPIG env; set KINAPSE_STCRPY_PYTHON)")
+    ap.add_argument("--score-chunk", type=int, default=None,
+                    help="structures per scoring checkpoint (default max(jobs,16); smaller = "
+                         "more frequent saves, slightly more overhead)")
     ap.add_argument("--no-structural", action="store_true", help="skip model-vs-GT Cα-iRMSD/tiers")
     args = ap.parse_args(argv)
     run_scorer_benchmark(args.gt, args.model, args.neg, out_dir=args.out, scorers=args.scorers,
                          test_frac=args.test_frac, seed=args.seed,
                          legacy_anarci=args.legacy_anarci and not args.new_anarci,
                          limit=args.limit, n_jobs=args.jobs, structural=not args.no_structural,
-                         loader=args.loader)
+                         loader=args.loader, score_chunk=args.score_chunk)
     return 0
 
 
