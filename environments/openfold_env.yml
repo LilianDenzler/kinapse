@@ -12,6 +12,10 @@
 # Then point kinapse at it in kinapse.yaml:
 #   evoformer: { conda_env: openfold_env, env_run: "micromamba run -n", ... }
 # See docs/generation.md.
+# NB: this env targets the DB-free OpenFold backend (run_pretrained_openfold_shortened +
+# ColabFold MSA) — newer numpy/biopython. The WIP evoformer2 (alphaflow) backend needs an
+# OLDER pinned env (numpy==1.21.2, pandas==1.5.3, biopython==1.79, openfold@103d037) —
+# build that separately if you use it.
 name: openfold_env
 channels:
   - bioconda
@@ -20,7 +24,7 @@ channels:
 dependencies:
   - aria2
   - awscli
-  - biopython==1.79   # openfold@103d037 needs Bio.Data.SCOPData (removed in >=1.80)
+  - biopython
   - git
   - bioconda::hhsuite==3.3.0
   - bioconda::hmmer==3.3.2
@@ -30,9 +34,9 @@ dependencies:
   - ml-collections
   - bioconda::mmseqs2
   - modelcif==0.7
-  - numpy==1.21.2      # alphaflow/openfold-103d037 (np.object removed in >=1.24)
+  - numpy
   - openmm=7.7
-  - pandas==1.5.3      # compatible with numpy 1.21
+  - pandas
   - pdbfixer
   - pip
   - python=3.9

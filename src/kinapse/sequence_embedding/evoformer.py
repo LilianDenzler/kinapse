@@ -48,6 +48,8 @@ def run(pdb_path, output_dir, fasta_dir: Optional[str] = None,
     ev = _cfg()
     if ev.get("backend", "openfold") == "evoformer2":
         return _run_evoformer2(pdb_path, output_dir, ev)
+    if ev.get("msa") == "colabfold":
+        return _run_openfold_colabfold(pdb_path, output_dir, ev)
 
     missing = [k for k in _REQUIRED if not ev.get(k)]
     if missing:
@@ -126,6 +128,32 @@ def _run_evoformer2(pdb_path, output_dir, ev) -> str:
                     "--evoformer_dir", ev["evoformer_dir"],
                     "--openfold_dir", ev.get("openfold_dir", "")]
     print("🧬 Evoformer (alphaflow, ColabFold MSA — no local DBs):\n   " + " ".join(cmd))
+    subprocess.run(cmd, check=True)
+    return str(output_dir)
+
+
+def _run_openfold_colabfold(pdb_path, output_dir, ev) -> str:
+    """openfold backend, DB-free: ColabFold remote MSA -> run_pretrained_openfold_shortened.
+    Uses the proven representation script with a ColabFold a3m (no local AlphaFold DBs)."""
+    import shlex
+    for k in ("openfold_dir", "evoformer_dir", "mmcif_dir"):
+        if not ev.get(k):
+            raise RuntimeError(f"msa=colabfold needs `{k}` in kinapse.yaml "
+                               "(openfold checkout, evoformer_representation dir, template CIFs).")
+    runner = str(Path(__file__).with_name("_openfold_colabfold_runner.py"))
+    conda_env = ev.get("conda_env", "openfold_env")
+    python_bin = ev.get("python")
+    prefix = ([python_bin] if python_bin
+              else shlex.split(ev.get("env_run", "conda run -n")) + [conda_env, "python3"])
+    cmd = prefix + ["-u", runner,
+                    "--pdb_file", str(pdb_path),
+                    "--outdir", str(output_dir),
+                    "--mmcif_dir", ev["mmcif_dir"],
+                    "--openfold_dir", ev["openfold_dir"],
+                    "--evoformer_dir", ev["evoformer_dir"],
+                    "--config_preset", ev.get("config_preset", "model_1_ptm"),
+                    "--model_device", ev.get("model_device", "cuda:0")]
+    print("🧬 OpenFold + ColabFold MSA (no local DBs):\n   " + " ".join(cmd))
     subprocess.run(cmd, check=True)
     return str(output_dir)
 

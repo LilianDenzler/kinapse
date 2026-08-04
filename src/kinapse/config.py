@@ -134,9 +134,12 @@ class PathConfig:
             # shells `conda run -n <conda_env> python <openfold_dir>/<run_script> …`; set the real
             # paths (OpenFold checkout, AlphaFold DBs) in kinapse.yaml under `evoformer:`.
             "evoformer": {
-                # backend: "openfold" (full AlphaFold DBs) or "evoformer2" (DB-free —
-                # ColabFold remote MSA + alphaflow AF2 representation; needs internet + AF2 weights).
+                # backend: "openfold" (run_pretrained_openfold_shortened.py) or "evoformer2"
+                # (alphaflow — WIP). With backend "openfold", set msa: "colabfold" to build the
+                # MSA from the ColabFold remote server (no local AlphaFold DBs); omit/None uses
+                # the local jackhmmer DBs (the DB paths below).
                 "backend": "openfold",
+                "msa": None,
                 "weights": str(root / "params_model_1.npz"),          # evoformer2: AF2 params .npz
                 "alphaflow_dir": str(root / "alphaflow"),             # evoformer2: alphaflow source
                 "evoformer_dir": str(root / "evoformer_representation"),  # evoformer2: predict_evoformer2.py dir

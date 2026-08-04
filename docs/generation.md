@@ -40,6 +40,15 @@ generation:
   main_model:             /path/your_newest_model.pth      # or KINAPSE_CHECKPOINT_MAIN_MODEL / --checkpoint
 
 evoformer:                                                  # the embedding step
+  # RECOMMENDED (DB-free, proven script): backend "openfold" + msa "colabfold" runs
+  # run_pretrained_openfold_shortened.py fed a ColabFold *remote* MSA — no local AlphaFold
+  # genetic DBs. Needs internet + GPU + the OpenFold checkout (bundled AF2 params) + template CIFs.
+  #   backend: openfold
+  #   msa: colabfold
+  #   openfold_dir:  /path/Graphormer/openfold
+  #   evoformer_dir: /path/.../evoformer_representation   # make_MSA.py / MSA_query.py
+  #   mmcif_dir:     /path/wwPDB/cif/mmcif_files
+  # ---
   # backend "evoformer2" = DB-FREE: ColabFold *remote* MSA + alphaflow AF2 representation
   # (no local AlphaFold databases; needs internet + a GPU + the AF2 weights .npz). Recommended
   # when you don't have the ~2 TB genetic DBs. backend "openfold" = full local-DB jackhmmer path.
