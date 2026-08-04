@@ -1,12 +1,29 @@
-from modeller import Environ
-from modeller.automodel import LoopModel, refine
-from modeller import selection
-from modeller import environ
-from modeller import log
-
-
-
 import argparse
+import os
+
+# MODELLER is a licensed academic tool; it builds the α/β linker loop. Import it lazily so
+# `import kinapse` (and the whole structures package) works without it — only the linker step
+# needs it. `LoopModel = object` lets the ScFvModel class body parse when MODELLER is absent;
+# build_model() raises a clear, actionable error before anything MODELLER-specific runs.
+_MODELLER_HINT = (
+    "MODELLER is required to build the α/β linker (kinapse.structures.linkers) but is not "
+    "installed / licensed.\n"
+    "  1. install it into your env:  micromamba install -n kinapse -c salilab modeller\n"
+    "     (or:  conda install -c salilab modeller)\n"
+    "  2. get a free academic key:   https://salilab.org/modeller/registration.html\n"
+    "  3. set the key (either):      export KEY_MODELLER=YOUR_KEY   (before first import)\n"
+    "     or edit  <env>/lib/modeller-*/modlib/modeller/config.py  ->  license = 'YOUR_KEY'\n"
+    "Then re-run. (The DiG linker step needs a real α/β-linked structure — see docs/README.)"
+)
+try:
+    from modeller import Environ, selection
+    from modeller.automodel import LoopModel, refine
+    _MODELLER_OK = True
+    _MODELLER_ERR = None
+except Exception as _e:  # noqa: BLE001 - missing package OR missing licence
+    _MODELLER_OK, _MODELLER_ERR = False, _e
+    LoopModel = object   # placeholder so the class below still parses
+
 
 class ScFvModel(LoopModel):
     def __init__(self, *args, linker_pos_start=None, linker_pos_end=None, **kwargs):
@@ -18,10 +35,11 @@ class ScFvModel(LoopModel):
         # Only remodel the linker region
         return selection(self.residue_range(f'{self.linker_pos_start}:A', f'{self.linker_pos_end}:A'))
 
-import os
 
 def build_model( linker_dir, alignment_file, model_name,
                 linker_pos_start, linker_pos_end):
+    if not _MODELLER_OK:
+        raise ImportError(_MODELLER_HINT) from _MODELLER_ERR
     env = Environ()
     env.io.atom_files_directory = [linker_dir]
     a = ScFvModel(env,
