@@ -80,6 +80,13 @@ micromamba create -f environments/openfold_env.yml               # python 3.9 / 
 micromamba run -n openfold_env pip install -e /path/to/Graphormer/openfold   # OpenFold isn't on PyPI
 ```
 
+**evoformer2 backend deps.** alphaflow is pinned to **`openfold@103d037`** (its `ExtraMSAStack`
+signature differs from newer OpenFold) and **`biopython==1.79`** (`openfold@103d037` imports
+`Bio.Data.SCOPData`, removed in ≥1.80). Point `evoformer.openfold_dir` at that checkout (clone
++ `git checkout 103d037`, then guard its two `attn_core_inplace_cuda` imports as below), and set
+`biopython==1.79` in the env. The env also needs `fair-esm`, `einops`, `absl-py` (see
+`environments/openfold_env.yml`). MSA is fetched from `api.colabfold.com` (needs internet).
+
 **OpenFold's fused CUDA kernel** (`attn_core_inplace_cuda`) is an *optional* speed/memory
 optimisation. Building it is finicky (needs a CUDA toolkit matching torch + GCC ≤10). You
 don't need it for embeddings — make its imports optional so OpenFold falls back to standard

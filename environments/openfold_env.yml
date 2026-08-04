@@ -20,7 +20,7 @@ channels:
 dependencies:
   - aria2
   - awscli
-  - biopython
+  - biopython==1.79   # openfold@103d037 needs Bio.Data.SCOPData (removed in >=1.80)
   - git
   - bioconda::hhsuite==3.3.0
   - bioconda::hmmer==3.3.2
