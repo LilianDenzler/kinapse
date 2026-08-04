@@ -129,6 +129,12 @@ class PathConfig:
                 # (env) or generation.main_model (yaml) to run your newest model.
                 "checkpoint": str(root / "protein" / "checkpoints" / "checkpoint-520k.pth"),
                 "main_model": str(root / "protein" / "checkpoints" / "checkpoint-520k.pth"),
+                # Interpreter for the external DiG scripts (get_init_state / run_inference*).
+                # Empty -> the current interpreter. Set `python` (direct path) OR `env_run`
+                # (e.g. "micromamba run -n") + `conda_env` (e.g. "openfold_env").
+                "python": "",
+                "env_run": "",
+                "conda_env": "",
             },
             # OpenFold/Evoformer embedding (kinapse.sequence_embedding.evoformer). kinapse only
             # shells `conda run -n <conda_env> python <openfold_dir>/<run_script> …`; set the real

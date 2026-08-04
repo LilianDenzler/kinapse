@@ -23,6 +23,19 @@ import time
 # Initialize path configuration
 paths = get_paths()
 
+
+def _dig_prefix():
+    """Launcher for the external DiG scripts (get_init_state / run_inference*): a configured
+    env (generation.python, or generation.env_run + generation.conda_env) else this interpreter."""
+    py = paths.get("generation", "python", default="")
+    if py:
+        return [py]
+    env = paths.get("generation", "conda_env", default="")
+    if env:
+        import shlex
+        return shlex.split(paths.get("generation", "env_run", default="") or "conda run -n") + [env, "python3"]
+    return [sys.executable]
+
 def save_noise_params(noise_params, final_out_subdir):
     json_path = os.path.join(final_out_subdir, "noise_params.json")
     with open(json_path, "w") as f:
@@ -103,7 +116,7 @@ def run_prep(final_out, input_pdb, pdb_name, linker_sequence="GGGGS" * 3,
         print(f"Init state file already exists. Skipping init state extraction step.")
     else:
         init_state_script = paths.get_pipeline_script('get_init_state')
-        subprocess.run(["python", init_state_script,
+        subprocess.run(_dig_prefix() + [init_state_script,
                     linked_out_file,
                     "--out_path", os.path.join(final_out, f"{pdb_name}.init_state.npz")])
         print("Init state extraction finished.")
@@ -116,7 +129,7 @@ def run_vanilla_no_init_state(final_out, pdb_name, n_samples=100):
     time_start=time.time()
     inference_script = paths.get_pipeline_script('run_inference')
     checkpoint = paths.get_checkpoint('main_model')
-    subprocess.run([sys.executable, inference_script,
+    subprocess.run(_dig_prefix() + [inference_script,
                     "-c", checkpoint,
                     "-i", os.path.join(final_out,  f"{pdb_name}.pkl"),
                     "-s", os.path.join(final_out,  f"{pdb_name}.fasta"),
@@ -149,7 +162,7 @@ def run_with_init_state(final_out, pdb_name, n_samples=100, noise_params=None):
     time_start=time.time()
     inference_addnoise_script = paths.get_pipeline_script('run_inference_addnoise')
     checkpoint = paths.get_checkpoint('main_model')
-    subprocess.run([sys.executable, inference_addnoise_script,
+    subprocess.run(_dig_prefix() + [inference_addnoise_script,
                     "-c", checkpoint,
                     "-i", os.path.join(final_out,  f"{pdb_name}.pkl"),
                     "-s", os.path.join(final_out,  f"{pdb_name}.fasta"),
@@ -188,7 +201,7 @@ def run_with_init_state_cdr_mask(final_out, pdb_name, n_samples=100, noise_param
     time_start=time.time()
     inference_addnoise_script = paths.get_pipeline_script('run_inference_addnoise')
     checkpoint = paths.get_checkpoint('main_model')   # your newest model (KINAPSE_CHECKPOINT_MAIN_MODEL)
-    subprocess.run([sys.executable, inference_addnoise_script,
+    subprocess.run(_dig_prefix() + [inference_addnoise_script,
                     "-c", checkpoint,
                     "-i", os.path.join(final_out,  f"{pdb_name}.pkl"),
                     "-s", os.path.join(final_out,  f"{pdb_name}.fasta"),
