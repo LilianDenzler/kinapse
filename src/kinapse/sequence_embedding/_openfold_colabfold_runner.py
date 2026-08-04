@@ -47,6 +47,15 @@ def main():
     ap.add_argument("--model_device", default="cuda:0")
     a = ap.parse_args()
 
+    # run_pretrained always inits the template featurizer, which needs >=1 *.cif in mmcif_dir
+    # (even though we use no templates here — ColabFold gives no pdb70 hits).
+    import glob
+    if not glob.glob(os.path.join(a.mmcif_dir, "*.cif")):
+        raise FileNotFoundError(
+            f"mmcif_dir has no *.cif: {a.mmcif_dir}\n"
+            "OpenFold's template featurizer needs the dir non-empty even though templates are "
+            "unused here. Point evoformer.mmcif_dir at a dir with a few .cif files.")
+
     sys.path.insert(0, a.openfold_dir)
     sys.path.insert(0, a.evoformer_dir)
     outdir = os.path.abspath(a.outdir)
