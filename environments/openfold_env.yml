@@ -1,0 +1,52 @@
+# OpenFold environment for the kinapse DiG embedding step
+# (kinapse.sequence_embedding.evoformer → OpenFold/Evoformer representation).
+#
+# This is a --from-history export of a known-working openfold_env (python 3.9 / torch 1.12,
+# with the MSA tools hmmer/hhsuite/kalign2/mmseqs2). Recreate it, then install OpenFold itself
+# from your OpenFold checkout (it is not on PyPI):
+#
+#   micromamba create -f environments/openfold_env.yml          # or: conda env create -f ...
+#   micromamba run -n openfold_env pip install -e /path/to/Graphormer/openfold
+#   # some presets also need: pip install deepspeed==0.14.5 dm-tree flash-attn
+#
+# Then point kinapse at it in kinapse.yaml:
+#   evoformer: { conda_env: openfold_env, env_run: "micromamba run -n", ... }
+# See docs/generation.md.
+name: openfold_env
+channels:
+  - bioconda
+  - conda-forge
+  - pytorch
+dependencies:
+  - aria2
+  - awscli
+  - biopython
+  - git
+  - bioconda::hhsuite==3.3.0
+  - bioconda::hmmer==3.3.2
+  - bioconda::kalign2==2.4
+  - libgcc=7.2
+  - mkl=2024.0
+  - ml-collections
+  - bioconda::mmseqs2
+  - modelcif==0.7
+  - numpy
+  - openmm=7.7
+  - pandas
+  - pdbfixer
+  - pip
+  - python=3.9
+  - pytorch::pytorch=1.12
+  - pytorch-lightning
+  - requests
+  - scipy==1.7
+  - setuptools=59.5.0
+  - tqdm==4.62.2
+  - typing-extensions==4.0
+  - wandb
+  - pip:
+      - dm-tree==0.1.6            # provides `import tree` — required by OpenFold
+      # some presets / fused attention also need (install as needed):
+      # - deepspeed==0.14.5
+      # - git+https://github.com/NVIDIA/dllogger.git
+      # - flash-attn

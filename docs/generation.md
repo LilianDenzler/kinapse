@@ -66,6 +66,13 @@ export KINAPSE_CONFIG=/path/to/kinapse.yaml
 | embedding | the OpenFold conda env (`evoformer.conda_env`), OpenFold checkout, **AlphaFold DBs**, a GPU |
 | inference | the DiG scripts (`generation.*`), your checkpoint (`main_model`), a GPU |
 
+Recreate the OpenFold env from the bundled spec
+([`environments/openfold_env.yml`](../environments/openfold_env.yml)):
+```bash
+micromamba create -f environments/openfold_env.yml               # python 3.9 / torch 1.12 + MSA tools
+micromamba run -n openfold_env pip install -e /path/to/Graphormer/openfold   # OpenFold isn't on PyPI
+```
+
 The embedding writes `<name>_output_dict.pkl` under the run dir; kinapse normalises it to
 `<pdb_name>.pkl`. Every mode uses `get_checkpoint('main_model')`, so `--checkpoint` /
 `KINAPSE_CHECKPOINT_MAIN_MODEL` swaps in your newest model everywhere.
