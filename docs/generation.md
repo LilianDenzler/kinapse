@@ -73,6 +73,18 @@ micromamba create -f environments/openfold_env.yml               # python 3.9 / 
 micromamba run -n openfold_env pip install -e /path/to/Graphormer/openfold   # OpenFold isn't on PyPI
 ```
 
+**OpenFold's fused CUDA kernel** (`attn_core_inplace_cuda`) is an *optional* speed/memory
+optimisation. Building it is finicky (needs a CUDA toolkit matching torch + GCC ≤10). You
+don't need it for embeddings — make its imports optional so OpenFold falls back to standard
+attention (used unless `use_memory_efficient_kernel`/`inplace_safe` are set):
+```python
+# in openfold/utils/kernel/attention_core.py and openfold/model/structure_module.py:
+try:
+    attn_core_inplace_cuda = importlib.import_module("attn_core_inplace_cuda")
+except ImportError:
+    attn_core_inplace_cuda = None
+```
+
 The embedding writes `<name>_output_dict.pkl` under the run dir; kinapse normalises it to
 `<pdb_name>.pkl`. Every mode uses `get_checkpoint('main_model')`, so `--checkpoint` /
 `KINAPSE_CHECKPOINT_MAIN_MODEL` swaps in your newest model everywhere.
