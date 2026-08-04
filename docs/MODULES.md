@@ -32,7 +32,7 @@ Each exposes `available()` (list specs) and `run(name, inputs)`; models are decl
 |---|---|---|---|---|
 | `kinapse.sequence_embedding` | `[sequence]` | sequence embedders | stable API | `mmseqs2_msa`, `openfold_evoformer`, `esm2`; native `pdb_to_fasta` |
 | `kinapse.structure_prediction` | `[modelling]` | structure predictors | scaffold | `alphafold3`, `boltz2`, `tcrdock`, `tcrmodel2`, `immunebuilder` |
-| `kinapse.conformer_generation` | `[generation]` | ensemble generators | stable API | `dig`, `alphaflow`, `bioemu`; native `postprocess` |
+| `kinapse.conformer_generation` | `[generation]` | ensemble generators (DiG) | stable API | `run_one`/`runall` (prep → in-pipeline Evoformer embedding → inference), CLI `python -m kinapse.conformer_generation.dig_runner --pdb …`; `dig`/`alphaflow`/`bioemu` specs; native `postprocess` |
 | `kinapse.binding_prediction` | `[binding]` | TCR-pMHC binding/specificity | scaffold | `nettcr`, `tulip`, `mixtcrpred`, `stag`, `tcren` |
 | `kinapse.docking` | `[docking]` | docking engines | scaffold | `haddock`, `rosettadock`, `cluspro` |
 | `kinapse.structure_analysis` | `[structure_analysis]` | external TCR structure annotators | stable API | `stcrpy` (external env via `KINAPSE_STCRPY_PYTHON`; also exposes `stcrpy_chains`/`region_ca_map` as an alternative benchmark loader) |

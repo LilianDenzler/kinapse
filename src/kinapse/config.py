@@ -124,7 +124,11 @@ class PathConfig:
                 "openfold_wrapper": str(root / "protein" / "full_pipeline"
                                         / "evoformer_representation"
                                         / "openfold_wrapper_for_evoformer.py"),
+                # `checkpoint` is the legacy default; `main_model` is the checkpoint the
+                # DiG runner actually loads — override it with KINAPSE_CHECKPOINT_MAIN_MODEL
+                # (env) or generation.main_model (yaml) to run your newest model.
                 "checkpoint": str(root / "protein" / "checkpoints" / "checkpoint-520k.pth"),
+                "main_model": str(root / "protein" / "checkpoints" / "checkpoint-520k.pth"),
             },
         }
 

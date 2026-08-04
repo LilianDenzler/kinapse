@@ -52,14 +52,50 @@ def pdb_to_fasta(pdb_path, fasta_path):
     print(f"✅ Wrote {len(seq_records)} chains to {fasta_path}")
 
 
-def run_prep(final_out, input_pdb,pdb_name, linker_sequence="GGGGS" * 3, regions_masked_true=None,pkl_dir=None):
+def compute_embedding(linked_pdb, final_out, pdb_name, use_mmseqs2_gpu=False):
+    """Compute the OpenFold/Evoformer conditioning embedding (``<pdb_name>.pkl``) *in the
+    pipeline*, by running the configured OpenFold wrapper on the linked structure, then
+    normalising the produced ``.pkl`` to ``<final_out>/<pdb_name>.pkl``.
+
+    The wrapper is ``generation.openfold_wrapper`` in the config (set it in ``kinapse.yaml``);
+    it needs the OpenFold checkout + AlphaFold DBs + a GPU. Returns the embedding path."""
+    target_pkl = os.path.join(final_out, f"{pdb_name}.pkl")
+    wrapper = paths.get_pipeline_script("openfold_wrapper")
+    if not wrapper or not Path(wrapper).exists():
+        raise FileNotFoundError(
+            "Cannot compute embeddings: the OpenFold wrapper is not configured/found "
+            f"(generation.openfold_wrapper = {wrapper!r}). Point it at your "
+            "openfold_wrapper_for_evoformer.py via kinapse.yaml, or pass a precomputed pkl_dir.")
+    fasta_dir = os.path.join(final_out, "embed_fasta")
+    os.makedirs(fasta_dir, exist_ok=True)
+    cmd = [sys.executable, wrapper,
+           "--pdb_path", str(linked_pdb),
+           "--fasta_dir", fasta_dir,
+           "--output_dir", str(final_out)]
+    if use_mmseqs2_gpu:
+        cmd.append("--usemmseq2_gpu")
+    print("🧬 Computing Evoformer embedding:\n   " + " ".join(cmd))
+    subprocess.run(cmd, check=True)
+    # normalise the wrapper's output to <pdb_name>.pkl
+    if not Path(target_pkl).exists():
+        found = sorted(Path(final_out).rglob("*.pkl"))
+        if not found:
+            raise FileNotFoundError(
+                f"OpenFold wrapper ran but produced no .pkl under {final_out} — check where "
+                "your wrapper writes the Evoformer representation.")
+        print(f"   using {found[0]} → {target_pkl}")
+        shutil.copyfile(found[0], target_pkl)
+    print(f"✅ Embedding ready: {target_pkl}")
+    return target_pkl
+
+
+def run_prep(final_out, input_pdb, pdb_name, linker_sequence="GGGGS" * 3,
+             regions_masked_true=None, pkl_dir=None, compute_embeddings=True,
+             use_mmseqs2_gpu=False):
     tcr=TCR(input_pdb)
     pv = tcr.pairs[0]
     linked_out_file=os.path.join(final_out, f"{pdb_name}_linked.pdb")
     print(linked_out_file)
-    #if Path(linked_out_file).exists():
-    #    print(f"Linked PDB already exists. Skipping linking step.")
-    #else:
     linked_structure=pv.linked_structure(linker_sequence)
     if regions_masked_true:
         binary_res_mask=pv.linked_resmask( regions_masked_true)
@@ -68,14 +104,24 @@ def run_prep(final_out, input_pdb,pdb_name, linker_sequence="GGGGS" * 3, regions
     print(f"Writing linked structure to {linked_structure}")
     write_pdb(linked_out_file, linked_structure)
 
-    if Path(os.path.join(final_out, f"{pdb_name}.pkl")).exists():
-        print(f"OpenFold output already exists. Skipping Evoformer embedding extraction.")
-    if Path(os.path.join(pkl_dir, f"{pdb_name}.pkl")).exists():
-        print(f"Copying precomputed Evo2 embeddings from {pkl_dir}")
-        shutil.copyfile(os.path.join(pkl_dir, f"{pdb_name}.pkl"), os.path.join(final_out, f"{pdb_name}.pkl"))
-        pdb_to_fasta(linked_out_file, os.path.join(final_out, f"{pdb_name}.fasta"))
+    # FASTA of the linked (single-chain) structure is always needed for inference
+    fasta_path = os.path.join(final_out, f"{pdb_name}.fasta")
+    pdb_to_fasta(linked_out_file, fasta_path)
+
+    # --- resolve the conditioning embedding <pdb_name>.pkl ---
+    target_pkl = os.path.join(final_out, f"{pdb_name}.pkl")
+    src_pkl = os.path.join(pkl_dir, f"{pdb_name}.pkl") if pkl_dir else None
+    if Path(target_pkl).exists():
+        print(f"✅ Embedding already present: {target_pkl}")
+    elif src_pkl and Path(src_pkl).exists():
+        print(f"Copying precomputed embedding from {pkl_dir}")
+        shutil.copyfile(src_pkl, target_pkl)
+    elif compute_embeddings:
+        compute_embedding(linked_out_file, final_out, pdb_name, use_mmseqs2_gpu=use_mmseqs2_gpu)
     else:
-        raise FileNotFoundError(f"Evo2 embeddings not found in {pkl_dir} for {pdb_name}. Please compute them first.")
+        raise FileNotFoundError(
+            f"Embedding {pdb_name}.pkl not found (looked in {final_out} and pkl_dir={pkl_dir}). "
+            "Pass compute_embeddings=True to generate it, or provide a precomputed pkl_dir.")
     #run inference
     if Path(os.path.join(final_out, f"{pdb_name}.init_state.npz")).exists():
         print(f"Init state file already exists. Skipping init state extraction step.")
@@ -164,8 +210,10 @@ def run_with_init_state_cdr_mask(final_out, pdb_name, n_samples=100, noise_param
         json.dump(regions_masked_true, f, indent=4)
     print(f"✅ Saved regions masked true to {regions_masked_true_json_path}")
     time_start=time.time()
-    subprocess.run([sys.executable, "/workspaces/Graphormer/distributional_graphormer/protein/run_inference_addnoise.py",
-                    "-c", "/workspaces/Graphormer/distributional_graphormer/protein/checkpoints/checkpoint-520k.pth",
+    inference_addnoise_script = paths.get_pipeline_script('run_inference_addnoise')
+    checkpoint = paths.get_checkpoint('main_model')   # your newest model (KINAPSE_CHECKPOINT_MAIN_MODEL)
+    subprocess.run([sys.executable, inference_addnoise_script,
+                    "-c", checkpoint,
                     "-i", os.path.join(final_out,  f"{pdb_name}.pkl"),
                     "-s", os.path.join(final_out,  f"{pdb_name}.fasta"),
                     "-o", pdb_name,
@@ -186,30 +234,81 @@ def run_with_init_state_cdr_mask(final_out, pdb_name, n_samples=100, noise_param
     return Path(final_out_subdir)
 
 
-def runall(output_dir_all, all_pdb_folder, pkl_dir, n_samples=200,dig_mode="vanilla_no_init", noise_params={"tr_a":0.2, "rot_a":0.2, "tr_b":2.5, "rot_b":1.5},regions_masked_true=["A_CDR1","A_CDR2","A_CDR3","B_CDR1","B_CDR2","B_CDR3"]):
-    pdbs = list(Path(all_pdb_folder).glob("*.pdb"))
-    if not os.path.exists(output_dir_all):
-        os.makedirs(output_dir_all)
-    for pdb_path in pdbs:
-        pdb_name = os.path.basename(pdb_path).replace(".pdb", "")
-        output_dir=os.path.join(output_dir_all,pdb_name)
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        preprocess_out,binary_res_mask=run_prep(output_dir, pdb_path,  pdb_name, linker_sequence="GGGGS" * 3, regions_masked_true=regions_masked_true, pkl_dir=pkl_dir)
-        print(binary_res_mask)
-        if dig_mode=="vanilla_no_init":
-            vanilla_no_init_frame_dir=run_vanilla_no_init_state(preprocess_out, pdb_name, n_samples=n_samples)
-        elif dig_mode=="init":
-            init_frame_dir=run_with_init_state(preprocess_out, pdb_name, n_samples=n_samples, noise_params=noise_params)
-        elif dig_mode=="init_cdr_mask":
-            init_cdr_mask_frame_dir=run_with_init_state_cdr_mask(preprocess_out, pdb_name, n_samples=n_samples, noise_params=noise_params,regions_masked_true=regions_masked_true, binary_res_mask=binary_res_mask)
-        elif dig_mode=="init_geometry_sample":
-            print("Not implemented yet.")
-        elif dig_mode=="init_cdr_mask_geometry_sample":
-            print("Not implemented yet.")
+def run_one(pdb_path, output_dir_all, pkl_dir=None, n_samples=200, dig_mode="init",
+            noise_params=None, regions_masked_true=("A_CDR1","A_CDR2","A_CDR3","B_CDR1","B_CDR2","B_CDR3"),
+            compute_embeddings=True, use_mmseqs2_gpu=False):
+    """Generate a DiG ensemble for a **single** TCR PDB (prep → embedding → inference).
+
+    Uses the checkpoint from ``KINAPSE_CHECKPOINT_MAIN_MODEL`` (or ``generation.main_model``).
+    With ``compute_embeddings=True`` (default) the Evoformer embedding is computed in-pipeline
+    if not already present / not in ``pkl_dir``. Returns the frame directory."""
+    if noise_params is None:
+        noise_params = {"tr_a": 0.2, "rot_a": 0.2, "tr_b": 0.1, "rot_b": 0.1}
+    regions_masked_true = list(regions_masked_true)
+    pdb_name = os.path.basename(str(pdb_path)).replace(".pdb", "")
+    output_dir = os.path.join(output_dir_all, pdb_name)
+    os.makedirs(output_dir, exist_ok=True)
+    preprocess_out, binary_res_mask = run_prep(
+        output_dir, str(pdb_path), pdb_name, linker_sequence="GGGGS" * 3,
+        regions_masked_true=regions_masked_true, pkl_dir=pkl_dir,
+        compute_embeddings=compute_embeddings, use_mmseqs2_gpu=use_mmseqs2_gpu)
+    if dig_mode == "vanilla_no_init":
+        return run_vanilla_no_init_state(preprocess_out, pdb_name, n_samples=n_samples)
+    if dig_mode == "init":
+        return run_with_init_state(preprocess_out, pdb_name, n_samples=n_samples, noise_params=noise_params)
+    if dig_mode == "init_cdr_mask":
+        return run_with_init_state_cdr_mask(preprocess_out, pdb_name, n_samples=n_samples,
+                                            noise_params=noise_params, regions_masked_true=regions_masked_true,
+                                            binary_res_mask=binary_res_mask)
+    raise ValueError(f"unknown dig_mode {dig_mode!r} "
+                     "(vanilla_no_init | init | init_cdr_mask)")
+
+
+def runall(output_dir_all, all_pdb_folder, pkl_dir=None, n_samples=200, dig_mode="vanilla_no_init",
+           noise_params=None, regions_masked_true=("A_CDR1","A_CDR2","A_CDR3","B_CDR1","B_CDR2","B_CDR3"),
+           compute_embeddings=True, use_mmseqs2_gpu=False):
+    """Batch DiG generation over every ``*.pdb`` in ``all_pdb_folder`` (see :func:`run_one`)."""
+    os.makedirs(output_dir_all, exist_ok=True)
+    for pdb_path in sorted(Path(all_pdb_folder).glob("*.pdb")):
+        run_one(pdb_path, output_dir_all, pkl_dir=pkl_dir, n_samples=n_samples, dig_mode=dig_mode,
+                noise_params=noise_params, regions_masked_true=regions_masked_true,
+                compute_embeddings=compute_embeddings, use_mmseqs2_gpu=use_mmseqs2_gpu)
+
+
+def main(argv=None):
+    """CLI: run DiG on a single TCR PDB (``--pdb``) or a folder (``--pdb-dir``)."""
+    import argparse
+    ap = argparse.ArgumentParser(description="Run the DiG diffusion sampler on a TCR to generate a conformational ensemble.")
+    src = ap.add_mutually_exclusive_group(required=True)
+    src.add_argument("--pdb", help="a single TCR PDB")
+    src.add_argument("--pdb-dir", help="a folder of TCR PDBs (batch)")
+    ap.add_argument("--out", required=True, help="output directory")
+    ap.add_argument("--mode", default="init", choices=("vanilla_no_init", "init", "init_cdr_mask"),
+                    help="DiG sampling mode (default: init)")
+    ap.add_argument("--n", type=int, default=200, help="samples to draw (default 200)")
+    ap.add_argument("--checkpoint", help="path to your DiG model — sets KINAPSE_CHECKPOINT_MAIN_MODEL")
+    ap.add_argument("--pkl-dir", help="dir of precomputed Evoformer embeddings (else computed in-pipeline)")
+    ap.add_argument("--no-compute-embeddings", action="store_true",
+                    help="do NOT compute embeddings in-pipeline (require a precomputed pkl)")
+    ap.add_argument("--mmseqs2-gpu", action="store_true", help="use MMseqs2-GPU for the MSA during embedding")
+    ap.add_argument("--tr-a", type=float, default=0.2); ap.add_argument("--rot-a", type=float, default=0.2)
+    ap.add_argument("--tr-b", type=float, default=0.1); ap.add_argument("--rot-b", type=float, default=0.1)
+    a = ap.parse_args(argv)
+
+    if a.checkpoint:
+        os.environ["KINAPSE_CHECKPOINT_MAIN_MODEL"] = a.checkpoint
+    ckpt = paths.get_checkpoint("main_model")
+    print(f"DiG checkpoint (main_model): {ckpt}")
+    noise = {"tr_a": a.tr_a, "rot_a": a.rot_a, "tr_b": a.tr_b, "rot_b": a.rot_b}
+    common = dict(pkl_dir=a.pkl_dir, n_samples=a.n, dig_mode=a.mode, noise_params=noise,
+                  compute_embeddings=not a.no_compute_embeddings, use_mmseqs2_gpu=a.mmseqs2_gpu)
+    if a.pdb:
+        run_one(a.pdb, a.out, **common)
+    else:
+        runall(a.out, a.pdb_dir, **common)
+    print(f"✅ done — ensembles under {a.out}")
+    return 0
+
 
 if __name__ == "__main__":
-    all_cory_pdbs="/mnt/larry/lilian/DATA/VANILLA_DIG_OUTPUTS/CORY_PDBS/input_pdbs_cory"
-    output_dir="/mnt/larry/lilian/DATA/VANILLA_DIG_OUTPUTS/CORY_PDBS/output_dig_variations"
-    pkl_dir="/mnt/larry/lilian/DATA/VANILLA_DIG_OUTPUTS/CORY_PDBS/evo2_embeddings"
-    runall(output_dir, all_cory_pdbs, pkl_dir=pkl_dir,dig_mode="vanilla_with_init")
+    raise SystemExit(main())
