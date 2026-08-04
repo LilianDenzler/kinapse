@@ -41,7 +41,9 @@ generation:
 
 evoformer:                                                  # the embedding step
   openfold_dir:  /path/Graphormer/openfold
-  conda_env:     openfold_env                               # conda env with torch + OpenFold
+  conda_env:     openfold_env                               # env with torch + OpenFold + MSA tools
+  env_run:       micromamba run -n                          # or "conda run -n" / "mamba run -n"
+                                                            #   (or set `python: /path/env/bin/python`)
   run_script:    run_pretrained_openfold_shortened.py
   config_preset: model_1_ptm
   model_device:  cuda:0

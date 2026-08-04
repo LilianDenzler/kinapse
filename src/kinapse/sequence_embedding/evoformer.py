@@ -71,8 +71,17 @@ def run(pdb_path, output_dir, fasta_dir: Optional[str] = None,
             align_dir=os.path.join(output_dir, "alignments"),
             output_dir=output_dir)
 
+    # How to launch the openfold env. `python` (a direct interpreter path) wins if set;
+    # otherwise `env_run` + `conda_env` (default `conda run -n`; micromamba/mamba users set
+    # env_run: "micromamba run -n"). env_run activates the env so MSA binaries are on PATH.
+    import shlex
     conda_env = ev.get("conda_env", "openfold_env")
-    cmd = ["conda", "run", "-n", conda_env, "python3", "-u", script_path,
+    python_bin = ev.get("python")
+    if python_bin:
+        prefix = [python_bin, "-u"]
+    else:
+        prefix = shlex.split(ev.get("env_run", "conda run -n")) + [conda_env, "python3", "-u"]
+    cmd = prefix + [script_path,
            fasta_dir, ev["mmcif_dir"],
            "--output_dir", output_dir,
            "--config_preset", ev.get("config_preset", "model_1_ptm"),

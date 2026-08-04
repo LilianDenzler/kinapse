@@ -136,6 +136,9 @@ class PathConfig:
             "evoformer": {
                 "openfold_dir": str(root / "openfold"),
                 "conda_env": "openfold_env",
+                # how to launch that env: `conda run -n` by default; micromamba/mamba users set
+                # env_run: "micromamba run -n". Or set `python` to a direct interpreter path.
+                "env_run": "conda run -n",
                 "run_script": "run_pretrained_openfold_shortened.py",
                 "config_preset": "model_1_ptm",
                 "model_device": "cuda:0",
