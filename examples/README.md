@@ -1,6 +1,13 @@
 # kinapse tutorials
 
-Runnable, category-split tutorials. Run them from this `examples/` directory.
+**New to kinapse? Run it in the browser — no install:**
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/LilianDenzler/kinapse/blob/main/examples/colab_quickstart.ipynb)
+&nbsp;[`colab_quickstart.ipynb`](colab_quickstart.ipynb) — pip-only, CPU: load a TCR, read its CDRs,
+the model registry, structural HQ/MQ/AQ/LQ tiers, and interface scoring. (Private repo → Colab
+asks you to authorize GitHub; paste a token in the install cell.)
+
+The notebooks below are the **local** tutorials (run them from this `examples/` directory with the
+full conda/MD stack installed).
 
 | notebook | topic | install |
 |---|---|---|

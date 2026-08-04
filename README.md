@@ -2,7 +2,7 @@
 
 **Modular toolkit for T-cell receptor (TCR) / TCR-pMHC structural dynamics.**
 
-🌐 **Website:** https://liliandenzler.github.io/kinapse/ · 📖 **Docs:** [`docs/`](docs/)
+🌐 **Website:** https://liliandenzler.github.io/kinapse/ · 📖 **Docs:** [`docs/`](docs/) · ▶️ **Try it:** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/LilianDenzler/kinapse/blob/main/examples/colab_quickstart.ipynb)
 
 `kinapse` reorganises the former `TCR_Metrics` research code into a single,
 installable, shareable Python package. It measures how well a generative model
