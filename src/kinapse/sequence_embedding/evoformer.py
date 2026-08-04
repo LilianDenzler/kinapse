@@ -46,6 +46,9 @@ def run(pdb_path, output_dir, fasta_dir: Optional[str] = None,
     from kinapse.sequence_embedding.fasta import pdb_to_fasta
 
     ev = _cfg()
+    if ev.get("backend", "openfold") == "evoformer2":
+        return _run_evoformer2(pdb_path, output_dir, ev)
+
     missing = [k for k in _REQUIRED if not ev.get(k)]
     if missing:
         raise RuntimeError(f"evoformer config is missing keys: {', '.join(missing)} "
@@ -99,6 +102,32 @@ def run(pdb_path, output_dir, fasta_dir: Optional[str] = None,
           % (conda_env, openfold_dir, " ".join(cmd)))
     subprocess.run(cmd, check=True, cwd=openfold_dir)
     return output_dir
+
+
+def _run_evoformer2(pdb_path, output_dir, ev) -> str:
+    """DB-free backend: ColabFold remote MSA + alphaflow AF2 Evoformer representation.
+    Shells our runner in the env (alphaflow + openfold + torch); no local AlphaFold DBs."""
+    import shlex
+    for k in ("weights", "alphaflow_dir", "evoformer_dir"):
+        if not ev.get(k):
+            raise RuntimeError(f"evoformer.backend=evoformer2 needs `{k}` in kinapse.yaml "
+                               "(AF2 weights .npz, alphaflow source dir, evoformer_representation dir).")
+    runner = str(Path(__file__).with_name("_evoformer2_runner.py"))
+    conda_env = ev.get("conda_env", "openfold_env")
+    python_bin = ev.get("python")
+    prefix = ([python_bin] if python_bin
+              else shlex.split(ev.get("env_run", "conda run -n")) + [conda_env, "python3"])
+    cmd = prefix + ["-u", runner,
+                    "--pdb_file", str(pdb_path),
+                    "--outdir", str(output_dir),
+                    "--weights_path", ev["weights"],
+                    "--msa_dir", os.path.join(str(output_dir), "msa"),
+                    "--alphaflow_dir", ev["alphaflow_dir"],
+                    "--evoformer_dir", ev["evoformer_dir"],
+                    "--openfold_dir", ev.get("openfold_dir", "")]
+    print("🧬 Evoformer (alphaflow, ColabFold MSA — no local DBs):\n   " + " ".join(cmd))
+    subprocess.run(cmd, check=True)
+    return str(output_dir)
 
 
 def find_embedding_pkl(output_dir) -> Optional[str]:

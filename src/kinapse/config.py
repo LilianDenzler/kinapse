@@ -134,6 +134,12 @@ class PathConfig:
             # shells `conda run -n <conda_env> python <openfold_dir>/<run_script> …`; set the real
             # paths (OpenFold checkout, AlphaFold DBs) in kinapse.yaml under `evoformer:`.
             "evoformer": {
+                # backend: "openfold" (full AlphaFold DBs) or "evoformer2" (DB-free —
+                # ColabFold remote MSA + alphaflow AF2 representation; needs internet + AF2 weights).
+                "backend": "openfold",
+                "weights": str(root / "params_model_1.npz"),          # evoformer2: AF2 params .npz
+                "alphaflow_dir": str(root / "alphaflow"),             # evoformer2: alphaflow source
+                "evoformer_dir": str(root / "evoformer_representation"),  # evoformer2: predict_evoformer2.py dir
                 "openfold_dir": str(root / "openfold"),
                 "conda_env": "openfold_env",
                 # how to launch that env: `conda run -n` by default; micromamba/mamba users set

@@ -40,10 +40,17 @@ generation:
   main_model:             /path/your_newest_model.pth      # or KINAPSE_CHECKPOINT_MAIN_MODEL / --checkpoint
 
 evoformer:                                                  # the embedding step
-  openfold_dir:  /path/Graphormer/openfold
-  conda_env:     openfold_env                               # env with torch + OpenFold + MSA tools
-  env_run:       micromamba run -n                          # or "conda run -n" / "mamba run -n"
-                                                            #   (or set `python: /path/env/bin/python`)
+  # backend "evoformer2" = DB-FREE: ColabFold *remote* MSA + alphaflow AF2 representation
+  # (no local AlphaFold databases; needs internet + a GPU + the AF2 weights .npz). Recommended
+  # when you don't have the ~2 TB genetic DBs. backend "openfold" = full local-DB jackhmmer path.
+  backend:       evoformer2
+  conda_env:     openfold_env                               # env with torch + openfold + alphaflow + esm
+  env_run:       micromamba run -n
+  weights:       /path/alphafold/params_model_1.npz         # AF2 params (not multimer)
+  alphaflow_dir: /path/Graphormer/alphaflow
+  evoformer_dir: /path/.../full_pipeline/evoformer_representation   # predict_evoformer2.py / make_MSA.py
+  openfold_dir:  /path/Graphormer/openfold                  # alphaflow imports openfold
+  # --- openfold backend only (ignored when backend: evoformer2) ---
   run_script:    run_pretrained_openfold_shortened.py
   config_preset: model_1_ptm
   model_device:  cuda:0

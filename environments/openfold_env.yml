@@ -46,6 +46,10 @@ dependencies:
   - wandb
   - pip:
       - dm-tree==0.1.6            # provides `import tree` — required by OpenFold
+      # for the DB-free evoformer2 embedding backend (alphaflow + ColabFold MSA):
+      - fair-esm
+      - einops
+      - absl-py
       # some presets / fused attention also need (install as needed):
       # - deepspeed==0.14.5
       # - git+https://github.com/NVIDIA/dllogger.git
