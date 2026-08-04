@@ -101,11 +101,14 @@ optimisation. Building it is finicky (needs a CUDA toolkit matching torch + GCC 
 don't need it for embeddings — make its imports optional so OpenFold falls back to standard
 attention (used unless `use_memory_efficient_kernel`/`inplace_safe` are set):
 ```python
-# in openfold/utils/kernel/attention_core.py and openfold/model/structure_module.py:
+# (1) guard the IMPORTS in attention_core.py and structure_module.py:
 try:
     attn_core_inplace_cuda = importlib.import_module("attn_core_inplace_cuda")
 except ImportError:
     attn_core_inplace_cuda = None
+# (2) guard the two runtime CALL sites so they fall back to the standard path when unbuilt:
+#   primitives.py:      if use_memory_efficient_kernel and attn_core_inplace_cuda is None: use_memory_efficient_kernel = False
+#   structure_module.py: if (inplace_safe and attn_core_inplace_cuda is not None):   # IPA in-place softmax
 ```
 
 The embedding writes `<name>_output_dict.pkl` under the run dir; kinapse normalises it to
