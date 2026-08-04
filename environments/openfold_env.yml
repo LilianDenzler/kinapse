@@ -30,9 +30,9 @@ dependencies:
   - ml-collections
   - bioconda::mmseqs2
   - modelcif==0.7
-  - numpy
+  - numpy==1.21.2      # alphaflow/openfold-103d037 (np.object removed in >=1.24)
   - openmm=7.7
-  - pandas
+  - pandas==1.5.3      # compatible with numpy 1.21
   - pdbfixer
   - pip
   - python=3.9
