@@ -130,6 +130,22 @@ class PathConfig:
                 "checkpoint": str(root / "protein" / "checkpoints" / "checkpoint-520k.pth"),
                 "main_model": str(root / "protein" / "checkpoints" / "checkpoint-520k.pth"),
             },
+            # OpenFold/Evoformer embedding (kinapse.sequence_embedding.evoformer). kinapse only
+            # shells `conda run -n <conda_env> python <openfold_dir>/<run_script> …`; set the real
+            # paths (OpenFold checkout, AlphaFold DBs) in kinapse.yaml under `evoformer:`.
+            "evoformer": {
+                "openfold_dir": str(root / "openfold"),
+                "conda_env": "openfold_env",
+                "run_script": "run_pretrained_openfold_shortened.py",
+                "config_preset": "model_1_ptm",
+                "model_device": "cuda:0",
+                "mmcif_dir": str(root / "alphafold" / "pdb_mmcif" / "mmcif_files"),
+                "uniref90": str(root / "alphafold" / "uniref90" / "uniref90.fasta"),
+                "mgnify": str(root / "alphafold" / "mgnify" / "mgy_clusters_2022_05.fa"),
+                "pdb70": str(root / "alphafold" / "pdb70" / "pdb70"),
+                "uniclust30": str(root / "alphafold" / "uniclust30" / "uniclust30_2018_08" / "uniclust30_2018_08"),
+                "bfd": str(root / "alphafold" / "bfd" / "bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt"),
+            },
         }
 
     # -- access ------------------------------------------------------------

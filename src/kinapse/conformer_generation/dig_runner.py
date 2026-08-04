@@ -54,37 +54,13 @@ def pdb_to_fasta(pdb_path, fasta_path):
 
 def compute_embedding(linked_pdb, final_out, pdb_name, use_mmseqs2_gpu=False):
     """Compute the OpenFold/Evoformer conditioning embedding (``<pdb_name>.pkl``) *in the
-    pipeline*, by running the configured OpenFold wrapper on the linked structure, then
-    normalising the produced ``.pkl`` to ``<final_out>/<pdb_name>.pkl``.
-
-    The wrapper is ``generation.openfold_wrapper`` in the config (set it in ``kinapse.yaml``);
-    it needs the OpenFold checkout + AlphaFold DBs + a GPU. Returns the embedding path."""
+    pipeline* via :func:`kinapse.sequence_embedding.evoformer.compute_to` — a lightweight,
+    config-driven orchestrator (kinapse shells ``conda run -n <env> …``; torch/OpenFold live
+    in that env). Configure paths in ``kinapse.yaml`` under ``evoformer:`` (needs a GPU +
+    AlphaFold DBs). Returns ``<final_out>/<pdb_name>.pkl``."""
+    from kinapse.sequence_embedding.evoformer import compute_to
     target_pkl = os.path.join(final_out, f"{pdb_name}.pkl")
-    wrapper = paths.get_pipeline_script("openfold_wrapper")
-    if not wrapper or not Path(wrapper).exists():
-        raise FileNotFoundError(
-            "Cannot compute embeddings: the OpenFold wrapper is not configured/found "
-            f"(generation.openfold_wrapper = {wrapper!r}). Point it at your "
-            "openfold_wrapper_for_evoformer.py via kinapse.yaml, or pass a precomputed pkl_dir.")
-    fasta_dir = os.path.join(final_out, "embed_fasta")
-    os.makedirs(fasta_dir, exist_ok=True)
-    cmd = [sys.executable, wrapper,
-           "--pdb_path", str(linked_pdb),
-           "--fasta_dir", fasta_dir,
-           "--output_dir", str(final_out)]
-    if use_mmseqs2_gpu:
-        cmd.append("--usemmseq2_gpu")
-    print("🧬 Computing Evoformer embedding:\n   " + " ".join(cmd))
-    subprocess.run(cmd, check=True)
-    # normalise the wrapper's output to <pdb_name>.pkl
-    if not Path(target_pkl).exists():
-        found = sorted(Path(final_out).rglob("*.pkl"))
-        if not found:
-            raise FileNotFoundError(
-                f"OpenFold wrapper ran but produced no .pkl under {final_out} — check where "
-                "your wrapper writes the Evoformer representation.")
-        print(f"   using {found[0]} → {target_pkl}")
-        shutil.copyfile(found[0], target_pkl)
+    compute_to(str(linked_pdb), str(final_out), target_pkl, use_mmseqs2_gpu=use_mmseqs2_gpu)
     print(f"✅ Embedding ready: {target_pkl}")
     return target_pkl
 

@@ -1,98 +1,126 @@
-##cd /workspaces/Graphormer/openfold
-##mamba env create -n openfold_env -f environment.yml
-#mamba activate openfold_env
-from kinapse.sequence_embedding.fasta import pdb_to_fasta
+"""OpenFold / Evoformer representation — the DiG conditioning embedding.
+
+**Lightweight by design:** kinapse never imports torch or OpenFold. This module only
+*orchestrates* — it builds and runs the OpenFold command inside its own conda env
+(``conda run -n <env> python run_pretrained_openfold_shortened.py …``), so the heavy
+stack lives entirely in that env. Every path is configurable (no ``/workspaces`` or
+``/mnt/bob`` hardcoding): values come from the ``evoformer`` section of
+:mod:`kinapse.config` (override in ``kinapse.yaml``).
+
+The run script writes ``<name>_output_dict.pkl`` under ``output_dir`` (that's the
+representation the DiG sampler conditions on).
+"""
+from __future__ import annotations
+
 import os
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "openfold"))
-import openfold
+import shutil
 import subprocess
-import shlex
-import torch
-from kinapse.sequence_embedding.msa import run_pipeline_with_precomputed_alignments
+from pathlib import Path
+from typing import Optional
 
-print("cuda_available:", torch.cuda.is_available(),
-      "device_count:", torch.cuda.device_count(),
-      "current_device:", torch.cuda.current_device() if torch.cuda.is_available() else None)
-def run(pdb_path, fasta_dir, output_dir,precom_alignments_dir=None, usemmseq2_gpu=False):
-    #make fasta file
-    fasta_path = os.path.join(fasta_dir, "seq.fasta")
-    pdb_to_fasta(pdb_path, fasta_path)
-    print(f"FASTA file created at {fasta_path}")
-    #run python command
-    if usemmseq2_gpu:
-        precom_alignments_dir=run_pipeline_with_precomputed_alignments(
-            fasta_path=fasta_path,
-            align_dir=os.path.join(output_dir,"alignments"),
-            output_dir=output_dir,
-            uniref90_db="/workspaces/Graphormer/mmseqs2_data/uniref90_db/uniref90",
-            model_device="cuda:0",
-            config_preset="model_1_ptm",
-            template_mmcif_dir="/mnt/bob/shared/alphafold/pdb_mmcif/mmcif_files",
-            threads="32",
-            gpu_ids="0,1",
-            conda_env="nvcc")
+from kinapse.config import get_paths
 
-    command=f"""python3 run_pretrained_openfold_shortened.py \
-        {fasta_dir} \
-        /mnt/bob/shared/alphafold/pdb_mmcif/mmcif_files \
-        --uniref90_database_path /mnt/bob/shared/alphafold/uniref90/uniref90.fasta \
-        --mgnify_database_path /mnt/bob/shared/alphafold/mgnify/mgy_clusters_2022_05.fa \
-        --pdb_seqres_database_path /mnt/bob/shared/alphafold/pdb_seqres/pdb_seqres.txt \
-        --uniref30_database_path /mnt/bob/shared/alphafold/uniref30/UniRef30_2021_03 \
-        --uniprot_database_path /mnt/bob/shared/alphafold/uniprot/uniprot.fasta \
-        --bfd_database_path /mnt/bob/shared/alphafold/bfd/bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt \
-        --jackhmmer_binary_path /home/vscode/.conda/envs/openfold/bin/jackhmmer \
-        --hhblits_binary_path /home/vscode/.conda/envs/openfold/bin/hhblits \
-        --hmmsearch_binary_path /home/vscode/.conda/envs/openfold/bin/hmmsearch \
-        --hmmbuild_binary_path /home/vscode/.conda/envs/openfold/bin/hmmbuild \
-        --kalign_binary_path /home/vscode/.conda/envs/openfold/bin/kalign \
-        --config_preset "model_1_multimer_v3" \
-        --model_device "cuda:0" \
-        --output_dir {output_dir} \
-        --save_outputs"""
-    commandv1=f"""conda run -n openfold python3 -u run_pretrained_openfold_shortened.py \
-        {fasta_dir} \
-        /mnt/bob/shared/alphafold/pdb_mmcif/mmcif_files \
-        --output_dir {output_dir} \
-        --config_preset "model_1_ptm" \
-        --uniref90_database_path /mnt/bob/shared/alphafold/uniref90/uniref90.fasta \
-        --mgnify_database_path /mnt/bob/shared/alphafold/mgnify/mgy_clusters_2022_05.fa \
-        --pdb70_database_path /mnt/bob/shared/alphafold/pdb70/pdb70 \
-        --uniclust30_database_path /mnt/bob/shared/alphafold/uniclust30/uniclust30_2018_08/uniclust30_2018_08 \
-        --bfd_database_path /mnt/bob/shared/alphafold/bfd/bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt \
-        --model_device "cuda:0" \
-        --save_outputs {'--use_precomputed_alignments '+str(precom_alignments_dir) if precom_alignments_dir else ''} """
-    command_list = shlex.split(commandv1)
-    print("--- Starting OpenFold subprocess ---")
-    # Using subprocess.run will wait for the command to complete.
-    # It will print the stdout and stderr from the subprocess directly to your current console in real-time.
-    result = subprocess.run(command_list, check=True) # check=True will raise an error if the script fails
-    print("--- OpenFold subprocess finished ---")
-    #os.system(commandv1)
+# evoformer config keys -> (default relative to project_root, description). Real values
+# belong in kinapse.yaml; the defaults are generic placeholders so kinapse stays shareable.
+_REQUIRED = ("openfold_dir", "mmcif_dir", "uniref90", "mgnify", "pdb70", "uniclust30", "bfd")
+
+
+def _cfg():
+    ev = get_paths().get("evoformer") or {}
+    if not ev:
+        raise RuntimeError(
+            "No `evoformer` config found. Add an `evoformer:` section to your kinapse.yaml "
+            "(openfold_dir, conda_env, mmcif_dir + AlphaFold DB paths) and point kinapse at it "
+            "with KINAPSE_CONFIG. See docs/generation.md.")
+    return ev
+
+
+def run(pdb_path, output_dir, fasta_dir: Optional[str] = None,
+        use_mmseqs2_gpu: bool = False, precom_alignments_dir: Optional[str] = None) -> str:
+    """Compute the Evoformer representation for one (linked) structure.
+
+    Makes a FASTA from ``pdb_path`` then runs OpenFold in its conda env; returns
+    ``output_dir`` (OpenFold writes ``<name>_output_dict.pkl`` there). Raises a clear
+    error if the ``evoformer`` config / required paths are missing.
+    """
+    from kinapse.sequence_embedding.fasta import pdb_to_fasta
+
+    ev = _cfg()
+    missing = [k for k in _REQUIRED if not ev.get(k)]
+    if missing:
+        raise RuntimeError(f"evoformer config is missing keys: {', '.join(missing)} "
+                           "(set them in kinapse.yaml under `evoformer:`).")
+    openfold_dir = ev["openfold_dir"]
+    run_script = ev.get("run_script", "run_pretrained_openfold_shortened.py")
+    script_path = run_script if os.path.isabs(run_script) else os.path.join(openfold_dir, run_script)
+    if not Path(script_path).exists():
+        raise FileNotFoundError(f"OpenFold run script not found: {script_path} "
+                                "(check evoformer.openfold_dir / run_script).")
+
+    output_dir = str(output_dir)
+    fasta_dir = fasta_dir or os.path.join(output_dir, "embed_fasta")
+    os.makedirs(fasta_dir, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
+    pdb_to_fasta(pdb_path, os.path.join(fasta_dir, "seq.fasta"))
+
+    if use_mmseqs2_gpu and not precom_alignments_dir:
+        # optional MMseqs2-GPU MSA precompute (also config-driven); see msa.py
+        from kinapse.sequence_embedding.msa import run_pipeline_with_precomputed_alignments
+        precom_alignments_dir = run_pipeline_with_precomputed_alignments(
+            fasta_path=os.path.join(fasta_dir, "seq.fasta"),
+            align_dir=os.path.join(output_dir, "alignments"),
+            output_dir=output_dir)
+
+    conda_env = ev.get("conda_env", "openfold_env")
+    cmd = ["conda", "run", "-n", conda_env, "python3", "-u", script_path,
+           fasta_dir, ev["mmcif_dir"],
+           "--output_dir", output_dir,
+           "--config_preset", ev.get("config_preset", "model_1_ptm"),
+           "--uniref90_database_path", ev["uniref90"],
+           "--mgnify_database_path", ev["mgnify"],
+           "--pdb70_database_path", ev["pdb70"],
+           "--uniclust30_database_path", ev["uniclust30"],
+           "--bfd_database_path", ev["bfd"],
+           "--model_device", ev.get("model_device", "cuda:0"),
+           "--save_outputs"]
+    if precom_alignments_dir:
+        cmd += ["--use_precomputed_alignments", str(precom_alignments_dir)]
+
+    print("🧬 OpenFold (Evoformer) — running in env %r, cwd %s:\n   %s"
+          % (conda_env, openfold_dir, " ".join(cmd)))
+    subprocess.run(cmd, check=True, cwd=openfold_dir)
+    return output_dir
+
+
+def find_embedding_pkl(output_dir) -> Optional[str]:
+    """Locate the representation .pkl OpenFold wrote (prefers ``*_output_dict.pkl``)."""
+    out = Path(output_dir)
+    for pat in ("*_output_dict.pkl", "*.pkl"):
+        hits = sorted(out.rglob(pat))
+        if hits:
+            return str(hits[0])
+    return None
+
+
+def compute_to(pdb_path, output_dir, pkl_out, use_mmseqs2_gpu: bool = False) -> str:
+    """Run OpenFold and copy the resulting representation to ``pkl_out``. Returns ``pkl_out``."""
+    run(pdb_path, output_dir, use_mmseqs2_gpu=use_mmseqs2_gpu)
+    src = find_embedding_pkl(output_dir)
+    if src is None:
+        raise FileNotFoundError(
+            f"OpenFold ran but wrote no .pkl under {output_dir} — check where "
+            "run_pretrained_openfold_shortened.py saves its output_dict.")
+    if os.path.abspath(src) != os.path.abspath(pkl_out):
+        shutil.copyfile(src, pkl_out)
+    return pkl_out
 
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--pdb_path", type=str, required=True, help="Path to the input PDB file")
-    parser.add_argument("--fasta_dir", type=str, required=True, help="Directory to save the FASTA file")
-    parser.add_argument("--output_dir", type=str,required=True, help="Directory to save the OpenFold output")
-    parser.add_argument("--precom_alignments_dir", type=str, default=None, help="Directory of precomputed alignments (optional)")
-    parser.add_argument("--usemmseq2_gpu", action='store_true', help="Whether to use MMseq2 with GPU acceleration for MSA generation")
-    args = parser.parse_args()
-
-    pdb_path = args.pdb_path
-    fasta_dir = args.fasta_dir
-    output_dir = args.output_dir
-    precom_alignments_dir = args.precom_alignments_dir
-    usemmseq2_gpu = args.usemmseq2_gpu
-    #change dir
-    os.chdir("/workspaces/Graphormer/openfold")
-    #mkdir fasta_dir if not exists
-    if not os.path.exists(fasta_dir):
-        os.makedirs(fasta_dir)
-    run(pdb_path, fasta_dir, output_dir, precom_alignments_dir=precom_alignments_dir, usemmseq2_gpu=usemmseq2_gpu)
-    # run as
-    # python openfold_wrapper_for_evoformer.py --pdb_path /path/to/pdb.pdb --fasta_dir /path/to/fasta_dir --fasta_path /path/to/fasta.fasta --output_dir /path/to/output_dir
+    ap = argparse.ArgumentParser(description="Compute the OpenFold/Evoformer embedding for a PDB.")
+    ap.add_argument("--pdb_path", required=True)
+    ap.add_argument("--output_dir", required=True)
+    ap.add_argument("--fasta_dir", default=None)
+    ap.add_argument("--usemmseq2_gpu", action="store_true")
+    a = ap.parse_args()
+    run(a.pdb_path, a.output_dir, fasta_dir=a.fasta_dir, use_mmseqs2_gpu=a.usemmseq2_gpu)

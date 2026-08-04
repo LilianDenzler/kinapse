@@ -38,3 +38,4 @@ examples/out/
 experiments/**/results/
 experiments/**/results_*/
 experiments/**/*_out/
+experiments/**/kinapse.yaml
