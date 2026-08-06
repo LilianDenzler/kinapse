@@ -14,18 +14,38 @@ with **all paths configurable** (no hardcoded `/workspaces` or `/mnt/bob`).
 ## Run
 
 ```bash
-# one TCR (embedding computed for you), using YOUR newest model:
+# one TCR (embedding computed for you), ALL sampling modes, using YOUR newest model:
 python -m kinapse.conformer_generation.dig_runner \
-    --pdb my_tcr.pdb --out out/ --mode init --n 200 \
+    --pdb my_tcr.pdb --out out/ --mode all --n 200 \
     --checkpoint /path/to/your_newest_model.pth
 
 # a folder (batch):  --pdb-dir tcrs/
 # already have embeddings:  --pkl-dir embeddings/   (and optionally --no-compute-embeddings)
+# just one mode:  --mode weighted_mask
 ```
 ```python
 from kinapse.conformer_generation import run_one
-run_one("my_tcr.pdb", "out/", n_samples=200, dig_mode="init")
+run_one("my_tcr.pdb", "out/", n_samples=200, dig_mode="all")   # or a single mode name
 ```
+
+## Sampling modes
+
+Five ways to drive the sampler. `--mode all` runs every one, and they **share** the same prep +
+embedding + init_state (computed once), so "all" costs one embedding + five inference passes.
+Each mode writes to its own sub-dir (`dig_<mode>…`) with the residue mask, noise params and timing.
+
+| mode | inference script | noise applied to | notes |
+|---|---|---|---|
+| `vanilla` | `run_inference.py` | — (samples from the prior) | no init_state, no mask — the unconditioned DiG ensemble |
+| `no_mask` | `run_inference_addnoise.py` | **every** residue | init_state + full noise |
+| `binary_mask` | `run_inference_addnoise.py` `-b` | CDR residues (hard on/off) | boolean mask over the 6 CDRs |
+| `cdr_mask` | `..._custom_cdrs.py` `-r` | CDR residues (value/amplitude path) | 1.0 on CDRs, 0.0 elsewhere — via the amplitude machinery |
+| `weighted_mask` | `..._guided_physics.py` `-r` | CDRs, **graded** amplitude | per-region weights (default CDR3=1.0, CDR1/2=0.5); no pocket → pure weighted noise |
+
+Legacy mode names still work: `vanilla_no_init`→`vanilla`, `init`→`no_mask`, `init_cdr_mask`→`binary_mask`.
+Tune the `weighted_mask` amplitudes with `--region-weights '{"A_CDR3":1.0,"A_CDR1":0.3,...}'` (CLI) or
+`region_weights={...}` (Python). The two mask-script paths are configured under `generation:`
+(`run_inference_addnoise_custom_cdrs`, `run_inference_addnoise_guided_physics`).
 
 ## Configure (once) — `kinapse.yaml`
 
@@ -36,6 +56,8 @@ Point it at your DiG checkout, checkpoint, OpenFold env and AlphaFold DBs:
 generation:
   run_inference:          /path/Graphormer/distributional_graphormer/protein/run_inference.py
   run_inference_addnoise: /path/Graphormer/distributional_graphormer/protein/run_inference_addnoise.py
+  run_inference_addnoise_custom_cdrs:    /path/.../protein/run_inference_addnoise_custom_cdrs.py    # cdr_mask mode
+  run_inference_addnoise_guided_physics: /path/.../protein/run_inference_addnoise_guided_physics.py  # weighted_mask mode
   get_init_state:         /path/Graphormer/distributional_graphormer/protein/full_pipeline/get_init_state.py
   main_model:             /path/your_newest_model.pth      # or KINAPSE_CHECKPOINT_MAIN_MODEL / --checkpoint
 

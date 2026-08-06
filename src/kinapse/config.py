@@ -120,6 +120,10 @@ class PathConfig:
                 # your checkout via config.yaml or KINAPSE_* env vars.
                 "run_inference": str(root / "protein" / "run_inference.py"),
                 "run_inference_addnoise": str(root / "protein" / "run_inference_addnoise.py"),
+                # value-mask (custom_cdrs) & weighted-amplitude (guided_physics) inference variants —
+                # used by the cdr_mask / weighted_mask sampling modes (see conformer_generation).
+                "run_inference_addnoise_custom_cdrs": str(root / "protein" / "run_inference_addnoise_custom_cdrs.py"),
+                "run_inference_addnoise_guided_physics": str(root / "protein" / "run_inference_addnoise_guided_physics.py"),
                 "get_init_state": str(root / "protein" / "full_pipeline" / "get_init_state.py"),
                 "openfold_wrapper": str(root / "protein" / "full_pipeline"
                                         / "evoformer_representation"
