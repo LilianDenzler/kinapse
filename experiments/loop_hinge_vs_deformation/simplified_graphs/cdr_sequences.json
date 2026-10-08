@@ -1,0 +1,178 @@
+{
+  "1KGC": {
+    "A_CDR1": "TISGTDY",
+    "A_CDR2": "GLTSN",
+    "A_CDR3": "ILPLAGGTSYGKLT",
+    "B_CDR1": "SGHVS",
+    "B_CDR2": "FQNEAQ",
+    "B_CDR3": "ASSLGQAYEQY"
+  },
+  "2BNU": {
+    "A_CDR1": "DSAIYN",
+    "A_CDR2": "IQSSQRE",
+    "A_CDR3": "AVRPTSGGSYIPT",
+    "B_CDR1": "MNHEY",
+    "B_CDR2": "SVGAGI",
+    "B_CDR3": "ASSYVGNTGELF"
+  },
+  "2CDF": {
+    "A_CDR1": "SVFSS",
+    "A_CDR2": "VVTGGEV",
+    "A_CDR3": "AGADRGSTLGRLY",
+    "B_CDR1": "MGHDK",
+    "B_CDR2": "SYGVNS",
+    "B_CDR3": "ASSEFRDGNEKLF"
+  },
+  "2CDG": {
+    "A_CDR1": "TSINN",
+    "A_CDR2": "IRSNERE",
+    "A_CDR3": "APFDRGSTLGRLY",
+    "B_CDR1": "MGHDK",
+    "B_CDR2": "SYGVNS",
+    "B_CDR3": "ASSESRTGINYGYT"
+  },
+  "3DX9": {
+    "A_CDR1": "TISGNEY",
+    "A_CDR2": "GLKNN",
+    "A_CDR3": "IVWGGYQKVT",
+    "B_CDR1": "SEHNR",
+    "B_CDR2": "FQNEAQ",
+    "B_CDR3": "ASRYRDDSYNEQF"
+  },
+  "3QEU": {
+    "A_CDR1": "DRGSQS",
+    "A_CDR2": "IYSNGD",
+    "A_CDR3": "AVNFGGGKLI",
+    "B_CDR1": "MRHNA",
+    "B_CDR2": "SNTAGT",
+    "B_CDR3": "ASSLSFGTEAF"
+  },
+  "3QH3": {
+    "A_CDR1": "DRGSQS",
+    "A_CDR2": "IYSNGD",
+    "A_CDR3": "AVTTDSWGKLQ",
+    "B_CDR1": "MNHEY",
+    "B_CDR2": "SVGAGI",
+    "B_CDR3": "ASRPGLAGGRPEQY"
+  },
+  "3SKN": {
+    "A_CDR1": "NSASQS",
+    "A_CDR2": "VYSSG",
+    "A_CDR3": "VVRAGKLI",
+    "B_CDR1": "MNHEY",
+    "B_CDR2": "SVGEGT",
+    "B_CDR3": "ASGQGNFDIQY"
+  },
+  "3VXQ": {
+    "A_CDR1": "DSAIYN",
+    "A_CDR2": "IQSSQRE",
+    "A_CDR3": "AVRMDSSYKLI",
+    "B_CDR1": "SEHNR",
+    "B_CDR2": "FQNEAQ",
+    "B_CDR3": "ASSSWDTGELF"
+  },
+  "3VXT": {
+    "A_CDR1": "DRGSQS",
+    "A_CDR2": "IYSNGD",
+    "A_CDR3": "GTYNQGGKLI",
+    "B_CDR1": "MNHEY",
+    "B_CDR2": "SMNVEV",
+    "B_CDR3": "ASSGASHEQY"
+  },
+  "4DZB": {
+    "A_CDR1": "TSGFNG",
+    "A_CDR2": "NVLDGL",
+    "A_CDR3": "AFMDSNYQLI",
+    "B_CDR1": "DFQATT",
+    "B_CDR2": "SNEGSKA",
+    "B_CDR3": "SARTSGDFGEQF"
+  },
+  "4JFH": {
+    "A_CDR1": "FLGSQS",
+    "A_CDR2": "TYREGD",
+    "A_CDR3": "AVNDGGRLT",
+    "B_CDR1": "GTSNPN",
+    "B_CDR2": "WGPFG",
+    "B_CDR3": "AWSETGLGMGGWQ"
+  },
+  "4UDT": {
+    "A_CDR1": "DSVNN",
+    "A_CDR2": "IPSGT",
+    "A_CDR3": "AVDSATSGTYKYI",
+    "B_CDR1": "SEHNR",
+    "B_CDR2": "FQNEAQ",
+    "B_CDR3": "ASSLGGYEQY"
+  },
+  "4ZDH": {
+    "A_CDR1": "DRGSQS",
+    "A_CDR2": "IYSNGD",
+    "A_CDR3": "AVTTDSWGKLQ",
+    "B_CDR1": "MDHEN",
+    "B_CDR2": "SYDVKM",
+    "B_CDR3": "ASSFLGTGVEQY"
+  },
+  "6FRA": {
+    "A_CDR1": "SSVPPY",
+    "A_CDR2": "YTSAATLV",
+    "A_CDR3": "AVSEQDDKI",
+    "B_CDR1": "KGHDR",
+    "B_CDR2": "SFDVKD",
+    "B_CDR3": "ATSDESYGYT"
+  },
+  "6OVN": {
+    "A_CDR1": "TSINN",
+    "A_CDR2": "IRSNERE",
+    "A_CDR3": "ATAAVGGFKTI",
+    "B_CDR1": "MGHRA",
+    "B_CDR2": "YSYEKL",
+    "B_CDR3": "ASSPLGREGLNTEAF"
+  },
+  "6XQQ": {
+    "A_CDR1": "DRGSQS",
+    "A_CDR2": "IYSNGD",
+    "A_CDR3": "AVRDAGNMLT",
+    "B_CDR1": "SQVTM",
+    "B_CDR2": "ANQGSEA",
+    "B_CDR3": "SVGGDSLIGNQPQH"
+  },
+  "7EA6": {
+    "A_CDR1": "NSASQS",
+    "A_CDR2": "VYSSG",
+    "A_CDR3": "VVNRGSSYKLI",
+    "B_CDR1": "SGHAT",
+    "B_CDR2": "FQNNGV",
+    "B_CDR3": "ASSQTYEQY"
+  },
+  "7N1D": {
+    "A_CDR1": "DRGSQS",
+    "A_CDR2": "IYSNGD",
+    "A_CDR3": "AVNRDDKII",
+    "B_CDR1": "SEHNR",
+    "B_CDR2": "FQNEAQ",
+    "B_CDR3": "ASSPDIEQY"
+  },
+  "7R7Z": {
+    "A_CDR1": "DSAIYN",
+    "A_CDR2": "IQSSQRE",
+    "A_CDR3": "AQLNQAGTALI",
+    "B_CDR1": "MNHEY",
+    "B_CDR2": "SVGAGI",
+    "B_CDR3": "ASSYGTGINYGYT"
+  },
+  "7S8I": {
+    "A_CDR1": "SVFSS",
+    "A_CDR2": "VVTGGEV",
+    "A_CDR3": "AGYGGGSNYKLT",
+    "B_CDR1": "MNHEY",
+    "B_CDR2": "SMNVEV",
+    "B_CDR3": "ASRLTGRVHGYT"
+  },
+  "8YJ3": {
+    "A_CDR1": "TSWWSYY",
+    "A_CDR2": "QGSDEQN",
+    "A_CDR3": "ALGDTAGKST",
+    "B_CDR1": "MNHEY",
+    "B_CDR2": "SMNVEV",
+    "B_CDR3": "ASSLVSTPLPKETQY"
+  }
+}

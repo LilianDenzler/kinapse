@@ -23,6 +23,31 @@ Trajectory sliced to a region:
 tv = pair.traj                         # TrajectoryView (mdtraj-backed)
 ```
 
+### Add a CD8 co-receptor to a class-I TCR-pMHC
+
+Most TCR-pMHC structures have no CD8 resolved. `add_cd8` grafts the correct one in
+by superposing a reference CD8 : pMHC-class-I template onto the target's MHC and
+transferring the CD8 into the target frame. The template (bundled **1AKJ**, human
+CD8αα by default) and the target MHC chain are auto-selected by MHC sequence
+similarity — no chain ids needed:
+
+```python
+from kinapse.structures import add_cd8
+
+res = add_cd8("complex.pdb", "complex_with_cd8.pdb")   # or: species="human"
+print(res)   # CD8[1AKJ] -> chains ['S', 'T'] (fit RMSD 0.9 Å over 275 Cα, MHC id 99%)
+
+# object-oriented equivalent
+from kinapse.structures import TCRpMHC
+TCRpMHC("complex.pdb").add_cd8("complex_with_cd8.pdb", do_fixer=True)  # + PDBFixer cleanup
+```
+
+CLI: `kinapse add-cd8 complex.pdb --out complex_with_cd8.pdb`
+(`--species`, `--target-mhc-chain`, `--fit-range`, `--ref-pdb`/`--ref-mhc-chain`/`--cd8-chains`,
+`--fixer`). CD8 binds class I only — a class-II or MHC-less target is rejected with a
+clear message. Point `KINAPSE_CD8_TEMPLATES_DIR` at your own `templates.yaml` to add
+species/alleles (e.g. a mouse H-2 template).
+
 ## 2. Geometry (module ③)
 
 ```python

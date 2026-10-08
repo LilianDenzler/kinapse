@@ -30,6 +30,9 @@ _LAZY = {
     "compute_pmf_hist": (".pmf_kde", "compute_pmf_hist"),
     "compute_pmf_kde": (".pmf_kde", "compute_pmf_kde"),
     "identify_high_density_points": (".pmf_kde", "identify_high_density_points"),
+    # point-in-ensemble membership (is a bound conformation inside the apo ensemble?)
+    "mahalanobis_membership": (".ensemble", "mahalanobis_membership"),
+    "ensemble_stats": (".ensemble", "ensemble_stats"),
     # alignment
     "align_traj_same_tcr_fast": (".aligning", "align_traj_same_tcr_fast"),
     "align_traj_to_refstructure": (".aligning", "align_traj_to_refstructure"),

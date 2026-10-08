@@ -28,7 +28,7 @@ structures = ["biopython", "biotite", "mdtraj", "anarcii", "freesasa"]
 sequence   = ["biopython"]
 geometry   = ["biotite", "biopython", "MDAnalysis"]
 dynamics   = ["mdtraj", "MDAnalysis", "scikit-learn", "scipy", "matplotlib", "deeptime"]
-dynabind   = []
+dynabind   = ["scipy"]   # basin/access math (numpy is core; scipy for KDE + chi2)
 # --- runner tiers: thin shims here; the actual external tools are provisioned
 #     per-tool in isolated envs via `uv` (see docs/ADDING_A_MODEL.md) ---
 generation = ["mdtraj"]
@@ -61,7 +61,7 @@ Homepage = "https://example.com/kinapse"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"kinapse.data" = ["so3/*.npy"]
+"kinapse.data" = ["so3/*.npy", "cd8_templates/*.pdb", "cd8_templates/*.yaml"]
 "kinapse.geometry" = ["data/**/*"]
 "kinapse.structures.numbering" = ["README"]
 "kinapse.pipelines.benchmark" = ["*.yaml"]

@@ -1,0 +1,11 @@
+# loop_hinge_vs_deformation: keep code, writeups, and result JSONs; drop regenerable/scratch artifacts
+*.pse
+*.pdb
+*.png
+*.npz
+*.log
+logs_*.txt
+__pycache__/
+# results data dirs are also ignored by the repo-root .gitignore (experiments/**/results*/)
+results/
+results_*/

@@ -4,7 +4,10 @@ import os
 from typing import Dict, List, Tuple, Optional
 from Bio.PDB import PDBParser, is_aa, Chain
 from Bio.SeqUtils import seq1
-from anarcii import Anarcii
+try:  # ANARCII (pip) is the default numberer; import lazily so the module (and
+    from anarcii import Anarcii  # the whole TCR loader) still imports when only
+except Exception:  # the legacy ANARCI backend is installed (legacy_anarci=True).
+    Anarcii = None
 try:  # legacy ANARCI is bioconda-only (not pip-installable); the ANARCII path
     from anarci import anarci  # above works without it. Import lazily so the
 except Exception:  # module (and the whole TCR loader) still imports pip-only.
@@ -50,6 +53,10 @@ _ANARCI_MODEL: Optional[Anarcii] = None
 
 def get_anarci_model() -> Anarcii:
     global _ANARCI_MODEL
+    if Anarcii is None:
+        raise ImportError(
+            "ANARCII numbering requested but `anarcii` is not installed. Install it "
+            "(`pip install anarcii`) or use the legacy backend (legacy_anarci=True).")
     if _ANARCI_MODEL is None:
         _ANARCI_MODEL = Anarcii(
             seq_type="tcr",

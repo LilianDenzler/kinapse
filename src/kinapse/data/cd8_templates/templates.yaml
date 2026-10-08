@@ -1,0 +1,27 @@
+# CD8 co-receptor reference templates.
+#
+# Each entry is a solved CD8 : peptide-MHC-class-I complex. kinapse superposes the
+# template's MHC heavy chain onto a target complex's MHC, applies that rigid
+# transform to the template's CD8 chains, and merges them into the target — so the
+# CD8 is placed exactly where the template's crystallography says it docks.
+#
+# Selection (`kinapse.structures.cd8.select_cd8_template`): the target must be MHC
+# class I (CD8 does not engage class II — that is CD4's job). Among the class-I
+# templates of the requested species, the one whose MHC heavy-chain sequence is
+# most identical to the target's MHC is chosen. `default: true` breaks ties / is the
+# fallback when species is unknown.
+#
+# `ref_pdb` paths are relative to this file's directory.
+
+templates:
+  - name: 1AKJ
+    ref_pdb: 1AKJ.pdb
+    species: human
+    mhc_class: I
+    cd8_type: aa            # CD8 alpha-alpha homodimer
+    mhc_chain: A            # HLA-A*02:01 heavy chain (~275 aa)
+    b2m_chain: B            # beta-2-microglobulin (~99 aa)
+    peptide_chain: C        # 9-mer epitope
+    cd8_chains: [D, E]      # CD8 alpha-alpha homodimer
+    default: true
+    citation: "Gao et al. 1997, Nature 387:630 (HLA-A2 / CD8alpha-alpha)"

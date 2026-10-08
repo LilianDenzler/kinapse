@@ -4,6 +4,7 @@ A thin, dependency-light entry point over the library. Subcommands:
 
     kinapse info                       show version, config & packaged-data paths
     kinapse prep     PDB [opts]        load/renumber/pair a TCR, write prepped structures
+    kinapse add-cd8  PDB [opts]        graft the correct CD8 co-receptor onto a class-I TCR-pMHC
     kinapse geometry PDB [opts]        compute TCR alpha/beta docking geometry
     kinapse pipelines                  list the migrated end-to-end workflows
 
@@ -62,6 +63,32 @@ def cmd_prep(args) -> int:
                 print(f"    {name:8s} {seq}")
         except Exception as e:
             print(f"  [warn] cdr_fr_sequences failed: {e}")
+    return 0
+
+
+def cmd_add_cd8(args) -> int:
+    from kinapse.structures.cd8 import add_cd8
+    ref_cd8 = args.cd8_chains.split(",") if args.cd8_chains else None
+    res = add_cd8(
+        args.pdb,
+        out_pdb=args.out,
+        ref_pdb=args.ref_pdb,
+        ref_mhc_chain=args.ref_mhc_chain,
+        ref_cd8_chains=ref_cd8,
+        species=args.species,
+        target_mhc_chain=args.target_mhc_chain,
+        cd8_new_chain_ids=tuple(args.new_chain_ids.split(",")),
+        fit_resrange=tuple(args.fit_range) if args.fit_range else None,
+        do_fixer=args.fixer,
+        ph=args.ph,
+    )
+    ident = "n/a" if res.mhc_identity != res.mhc_identity else f"{res.mhc_identity:.0%}"
+    print(f"template     : {res.template} (MHC chain {res.ref_mhc_chain})")
+    print(f"target MHC   : chain {res.target_mhc_chain}  (identity {ident})")
+    print(f"CD8 added    : chains {res.cd8_chains}")
+    print(f"fit RMSD     : {res.rmsd:.3f} Å over {res.n_matched} Cα")
+    if res.out_pdb:
+        print(f"wrote        : {res.out_pdb}")
     return 0
 
 
@@ -162,6 +189,21 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--out", default="kinapse_prep", help="output directory")
     sp.add_argument("--new-anarci", action="store_true", help="use ANARCII (GPU) instead of legacy ANARCI")
     sp.set_defaults(func=cmd_prep)
+
+    sp = sub.add_parser("add-cd8", help="graft the correct CD8 co-receptor onto a TCR-pMHC (class I) complex")
+    sp.add_argument("pdb", help="input TCR-pMHC (or pMHC) complex PDB")
+    sp.add_argument("--out", default="with_cd8.pdb", help="output PDB path")
+    sp.add_argument("--species", default=None, help="restrict template selection (e.g. human, mouse)")
+    sp.add_argument("--target-mhc-chain", default=None, help="MHC heavy-chain id in the target (auto-detected if omitted)")
+    sp.add_argument("--new-chain-ids", default="S,T", help="chain ids for the grafted CD8 (comma-separated; auto-bumped on collision)")
+    sp.add_argument("--fit-range", nargs=2, type=int, default=None, metavar=("START", "END"),
+                    help="restrict superposition to this reference resseq range (e.g. the alpha3 domain)")
+    sp.add_argument("--ref-pdb", default=None, help="use your own reference PDB instead of the registry (needs --ref-mhc-chain and --cd8-chains)")
+    sp.add_argument("--ref-mhc-chain", default=None, help="MHC heavy-chain id in --ref-pdb")
+    sp.add_argument("--cd8-chains", default=None, help="CD8 chain ids in --ref-pdb (comma-separated, e.g. D,E)")
+    sp.add_argument("--fixer", action="store_true", help="also run PDBFixer cleanup (needs pdbfixer/openmm)")
+    sp.add_argument("--ph", type=float, default=7.4, help="pH for PDBFixer hydrogen placement")
+    sp.set_defaults(func=cmd_add_cd8)
 
     sp = sub.add_parser("geometry", help="compute TCR alpha/beta docking geometry")
     sp.add_argument("pdb", help="input TCR PDB (or topology when --traj is given)")

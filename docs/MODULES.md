@@ -21,7 +21,7 @@ fails when you actually use a feature that needs a missing dependency.
 ## Science modules
 | module | extra | purpose | status | key API |
 |---|---|---|---|---|
-| `kinapse.structures` | `[structures]` | load/prep TCR & pMHC (numbering, pairing, linkers, pmhc) + interface characterization | stable | `TCR`, `TCRPairView`, `TrajectoryView`, `load_tcr`, `analyze_interface`, `TCRpMHC.interface()` |
+| `kinapse.structures` | `[structures]` | load/prep TCR & pMHC (numbering, pairing, linkers, pmhc) + interface characterization + CD8 co-receptor grafting | stable | `TCR`, `TCRPairView`, `TrajectoryView`, `load_tcr`, `analyze_interface`, `TCRpMHC.interface()`, `add_cd8`, `TCRpMHC.add_cd8()`, `select_cd8_template` |
 | `kinapse.geometry` | `[geometry]` | α/β inter-domain docking-angle geometry (the TCR's own α/β domains) | stable | `calc_tcr_geometry`, `calc_tcr_geometry_MD` |
 | `kinapse.dynamics_analysis` | `[dynamics]` | ensemble/MD analysis + metrics + structure features + reducers + PMF/JSD (MSM/NMA planned) | stable | `rmsd_tm`, `run_ca_dist`, `oriol_analysis`, `align_*` |
 | `kinapse.dynabind` | `[dynabind]` | ★ novel: ensemble → dynamics features → binding/cross-reactivity | scaffold | `featurize`, `predict` |
@@ -31,7 +31,7 @@ Each exposes `available()` (list specs) and `run(name, inputs)`; models are decl
 | module | extra | wraps | status | registered (all `planned`/`scaffold` until wired) |
 |---|---|---|---|---|
 | `kinapse.sequence_embedding` | `[sequence]` | sequence embedders | stable API | `mmseqs2_msa`, `openfold_evoformer`, `esm2`; native `pdb_to_fasta` |
-| `kinapse.structure_prediction` | `[modelling]` | structure predictors | scaffold | `alphafold3`, `boltz2`, `tcrdock`, `tcrmodel2`, `immunebuilder` |
+| `kinapse.structure_prediction` | `[modelling]` | structure predictors | **`tfold_tcr` wired** (external env, `KINAPSE_TFOLD_PYTHON`); rest scaffold | `tfold_tcr` (seq → TCR-pMHC/TCR/pMHC complex, ESM-PPI, no MSA); planned `alphafold3`, `boltz2`, `tcrdock`, `tcrmodel2`, `immunebuilder` |
 | `kinapse.conformer_generation` | `[generation]` | ensemble generators (DiG) | stable API | `run_one`/`runall` (prep → in-pipeline Evoformer embedding → inference), CLI `python -m kinapse.conformer_generation.dig_runner --pdb …`; `dig`/`alphaflow`/`bioemu` specs; native `postprocess` |
 | `kinapse.binding_prediction` | `[binding]` | TCR-pMHC binding/specificity | scaffold | `nettcr`, `tulip`, `mixtcrpred`, `stag`, `tcren` |
 | `kinapse.docking` | `[docking]` | docking engines | scaffold | `haddock`, `rosettadock`, `cluspro` |

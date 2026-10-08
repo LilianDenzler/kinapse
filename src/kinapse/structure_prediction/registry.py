@@ -2,6 +2,22 @@
 from __future__ import annotations
 
 from kinapse.runners import RunnerSpec, register
+from .tfold import run_tfold
+
+# tFold-TCR is fully wired (external env behind a JSON contract, like the STCRpy
+# runner) — set KINAPSE_TFOLD_PYTHON to a tfold env. Registered as ``native``
+# because its func manages its own isolated subprocess (not a uv throwaway env).
+register(RunnerSpec(
+    name="tfold_tcr", tier="structure_prediction", backend="native", status="stable",
+    description="tFold-TCR (TencentAI4S/tfold) — sequence -> TCR-pMHC (or TCR / pMHC) complex "
+                "structure via ESM-PPI + folding trunk (no MSA). Runs in its own external env "
+                "(set KINAPSE_TFOLD_PYTHON); weights auto-download from Zenodo. Inputs: a single "
+                "{chains, out_pdb} or a {jobs:[...]} batch; chain ids B/A/M/N/P.",
+    outputs=("pdb", "iptm", "ptm"),
+    homepage="https://github.com/TencentAI4S/tfold",
+    tags=("tcr", "pmhc", "complex", "external"),
+    func=lambda inputs: run_tfold(inputs, timeout=inputs.get("timeout")),
+))
 
 for _spec in [
     RunnerSpec(name="alphafold3", tier="structure_prediction", backend="uvenv", status="planned",

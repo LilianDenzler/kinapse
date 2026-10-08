@@ -37,6 +37,7 @@ _ENV = {
     "output": ("KINAPSE_OUTPUT", "TCR_DYNAMICS_OUTPUT"),
     "datasets": ("KINAPSE_DATASETS", "TCR_DYNAMICS_DATASETS"),
     "config": ("KINAPSE_CONFIG", "TCR_DYNAMICS_CONFIG"),
+    "cd8_templates": ("KINAPSE_CD8_TEMPLATES_DIR",),
 }
 
 
@@ -244,3 +245,16 @@ def consensus_output_dir() -> Path:
     """Directory holding the TCR geometry consensus reference structures."""
     from importlib.resources import files
     return Path(str(files("kinapse.geometry.data").joinpath("consensus_output")))
+
+
+def cd8_templates_dir() -> Path:
+    """Directory holding the bundled CD8 : pMHC reference templates.
+
+    Override with the ``KINAPSE_CD8_TEMPLATES_DIR`` env var to point at your own
+    template directory (must contain a ``templates.yaml`` manifest).
+    """
+    override = _env("cd8_templates")
+    if override:
+        return Path(override)
+    from importlib.resources import files
+    return Path(str(files("kinapse.data").joinpath("cd8_templates")))

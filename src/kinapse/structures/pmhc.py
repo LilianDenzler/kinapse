@@ -172,6 +172,18 @@ class TCRpMHC:
         """
         raise NotImplementedError("TCR-pMHC docking geometry is not implemented yet (scaffold).")
 
+    def add_cd8(self, out_pdb: Optional[str] = None, **kwargs):
+        """Graft the correct CD8 co-receptor onto this complex.
+
+        Superposes a reference CD8 : pMHC-class-I template onto this complex's MHC
+        and transfers the CD8 into the target frame. See
+        :func:`kinapse.structures.cd8.add_cd8` for the full argument list
+        (``template``, ``species``, ``target_mhc_chain``, ``fit_resrange``,
+        ``do_fixer`` …). Returns a :class:`~kinapse.structures.cd8.CD8Result`.
+        """
+        from .cd8 import add_cd8
+        return add_cd8(self.input_pdb, out_pdb, **kwargs)
+
 
 def load_pmhc(pdb: str, traj: Optional[str] = None, mhc_class: Optional[str] = None) -> PMHC:
     """Convenience constructor for :class:`PMHC`."""

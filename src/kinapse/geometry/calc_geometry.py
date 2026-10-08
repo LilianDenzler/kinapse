@@ -134,6 +134,172 @@ def add_cgo_arrow(start, end, color, radius=0.3):
     ]"""
 
 # -------------------------
+# CDR3 loop bend / apex metric (IMGT anchors 104 <-> 118)
+# -------------------------
+# The CDR3 is the stretch strictly between the conserved IMGT anchors 104
+# (2nd-CYS) and 118 (J-PHE/TRP-GLY). Given the two anchor CA's A,B (the base
+# "chord"), their midpoint M and the domain centroid C, we work in the plane
+# perpendicular to the chord and report the apex loop's *deviation from pointing
+# straight away from the domain body*:
+#
+#     bend_deg = 180 - angle(base->centroid, base->apex)     # 0 = straight
+#
+# signed by a stable in-plane lateral axis. This replaces the earlier
+# ``(x - 180) % 360`` output, which placed a 0/360 wrap exactly at the modal
+# (near-straight) loop pose and took its sign from a cross product that is
+# degenerate there -- both fatal for per-frame MD statistics.
+def _res_sort_key(res):
+    _, resseq, icode = res.get_id()
+    return (int(resseq), (icode or " ").strip())
+
+
+def _get_ca_coord(res):
+    if "CA" not in res:
+        return None
+    return np.asarray(res["CA"].get_coord(), dtype=float)
+
+
+def _pymol_resi_string(res):
+    _, resseq, icode = res.get_id()
+    icode = (icode or " ").strip()
+    return f"{int(resseq)}{icode}" if icode else f"{int(resseq)}"
+
+
+def _collect_chain_residues(model0, chain_id):
+    if chain_id not in model0:
+        raise ValueError(f"Chain '{chain_id}' not found in structure.")
+    residues = []
+    for res in model0[chain_id]:
+        if res.get_id()[0] != " ":          # skip hetero / water
+            continue
+        if _get_ca_coord(res) is None:
+            continue
+        residues.append(res)
+    residues.sort(key=_res_sort_key)
+    return residues
+
+
+def _pick_res_by_resseq(residues, resseq):
+    matches = [r for r in residues if int(r.get_id()[1]) == int(resseq)]
+    if not matches:
+        return None
+    for r in matches:                        # prefer blank insertion code
+        if (r.get_id()[2] or " ").strip() == "":
+            return r
+    return matches[0]
+
+
+def compute_cdr3_bend_metric_from_anchors(input_pdb, chain_id, chain_centroid,
+                                          anchor_pre_resseq=104, anchor_post_resseq=118):
+    """Signed CDR3 bend + apex protrusion from the IMGT framework anchors.
+
+    Returns a dict with ``bend_deg`` (signed deviation from straight; 0 means the
+    loop points directly away from the domain centroid), ``bend_abs_deg`` (the
+    raw ``angle(base->centroid, base->apex)``, ~180 for a straight loop),
+    ``apex_height_A`` (apex CA distance from the base chord) and ``apex_resi``.
+    All are rigid-motion invariant; only the loop CA's and ``chain_centroid``
+    must share a coordinate frame.
+    """
+    parser = PDBParser(QUIET=True)
+    model0 = parser.get_structure("tcr", str(input_pdb))[0]
+
+    residues = _collect_chain_residues(model0, chain_id)
+    if len(residues) < 10:
+        raise ValueError(f"Too few residues with CA in chain {chain_id}.")
+
+    pre = _pick_res_by_resseq(residues, anchor_pre_resseq)
+    post = _pick_res_by_resseq(residues, anchor_post_resseq)
+    if pre is None or post is None:
+        raise ValueError(
+            f"Missing anchor(s) {anchor_pre_resseq}/{anchor_post_resseq} on chain {chain_id}.")
+
+    i_pre, i_post = residues.index(pre), residues.index(post)
+    if i_post <= i_pre + 1:
+        raise ValueError(f"No residues between anchors on chain {chain_id}.")
+
+    cdr3_residues = residues[i_pre + 1:i_post]
+    if len(cdr3_residues) < 3:
+        raise ValueError(f"Too few CDR3 residues on chain {chain_id} (n={len(cdr3_residues)}).")
+
+    A = _get_ca_coord(pre)
+    B = _get_ca_coord(post)
+    uhat = as_unit(B - A)                      # base chord, pre(104) -> post(118)
+    M = 0.5 * (A + B)
+
+    # Reference: base midpoint -> domain centroid, projected off the chord.
+    C = np.asarray(chain_centroid, float)
+    v = C - M
+    v_perp = v - np.dot(v, uhat) * uhat
+    v_perp_norm = float(np.linalg.norm(v_perp))
+
+    cdr_coords = [(r, _get_ca_coord(r)) for r in cdr3_residues]
+    cdr_coords = [(r, c) for r, c in cdr_coords if c is not None]
+    if not cdr_coords:
+        raise ValueError(f"No CDR3 CA coords on chain {chain_id}.")
+
+    def _height_from_chord(coord):
+        w = coord - M
+        return float(np.linalg.norm(w - np.dot(w, uhat) * uhat))
+
+    def _apex_score(coord):
+        return min(float(np.linalg.norm(coord - A)), float(np.linalg.norm(coord - B)))
+
+    # Deterministic apex: furthest from the nearer anchor, tie-break by chord
+    # height then by sequence-centrality.
+    mid_index = (len(cdr3_residues) - 1) / 2.0
+    res_to_idx = {r: i for i, r in enumerate(cdr3_residues)}
+
+    def _key(rc):
+        r, coord = rc
+        return (_apex_score(coord), _height_from_chord(coord), -abs(res_to_idx[r] - mid_index))
+
+    r_apex, R = max(cdr_coords, key=_key)
+
+    w = R - M
+    w_perp = w - np.dot(w, uhat) * uhat
+    w_perp_norm = float(np.linalg.norm(w_perp))
+
+    # Bend = deviation from straight, signed by a stable in-plane lateral axis.
+    if v_perp_norm > 1e-6 and w_perp_norm > 1e-6:
+        vhat = v_perp / v_perp_norm
+        what = w_perp / w_perp_norm
+        bend_abs_deg = angle_between(vhat, what)         # ~180 for a straight loop
+        bend_deg = 180.0 - bend_abs_deg                  # 0 = straight, no wrap
+        lat = np.cross(uhat, vhat)                       # stable in-plane lateral axis
+        lat_norm = float(np.linalg.norm(lat))
+        sign = 1.0
+        if lat_norm > 1e-9 and np.dot(what, lat / lat_norm) < 0:
+            sign = -1.0
+        bend_signed_deg = sign * bend_deg
+    else:
+        bend_abs_deg = bend_deg = bend_signed_deg = float("nan")
+
+    return {
+        "chain_id": chain_id,
+        "anchor_pre_resi": _pymol_resi_string(pre),
+        "anchor_post_resi": _pymol_resi_string(post),
+        "apex_resi": _pymol_resi_string(r_apex),
+        "A_anchor": A, "B_anchor": B, "M_mid": M, "C_chain": C, "R_apex": R,
+        "bend_deg": bend_signed_deg,          # signed deviation from straight (0 = straight)
+        "bend_abs_deg": bend_abs_deg,         # raw angle(centroid, apex); ~180 = straight
+        "apex_height_A": _height_from_chord(R),
+        "centroid_height_A": v_perp_norm,
+        "apex_score_minDist": _apex_score(R),
+    }
+
+
+def _safe_cdr3(pdb_path, chain_id, centroid):
+    """CDR3 metric that degrades to NaNs instead of aborting the geometry."""
+    try:
+        return compute_cdr3_bend_metric_from_anchors(
+            input_pdb=pdb_path, chain_id=chain_id, chain_centroid=centroid)
+    except Exception as e:  # missing loop / anchors / CAs on this frame
+        warnings.warn(f"CDR3 metric failed for chain {chain_id}: {e}")
+        return {"apex_resi": None, "bend_deg": float("nan"),
+                "bend_abs_deg": float("nan"), "apex_height_A": float("nan")}
+
+
+# -------------------------
 # Core processing (NO geometry modification of the input)
 # -------------------------
 def process(input_pdb, consA_with_pca, consB_with_pca, out_dir, vis_folder=None, A_consenus_res=None, B_consenus_res=None):
@@ -195,6 +361,13 @@ def process(input_pdb, consA_with_pca, consB_with_pca, out_dir, vis_folder=None,
     AC2 = angle_between(A2,  Cvec)
     dc  = float(np.linalg.norm(Bpts.C - Apts.C))
 
+    # CDR3 loop bend/apex. Read from the consensus-A-aligned input so the loop
+    # CA's and the domain centroids (Apts.C / Bpts.C) live in one frame; the
+    # metric is rigid-motion invariant so the choice of frame does not matter.
+    # Defensive: a bad loop must never abort the 6-parameter geometry.
+    alpha_cdr3 = _safe_cdr3(aligned_input_path, "A", Apts.C)
+    beta_cdr3  = _safe_cdr3(aligned_input_path, "B", Bpts.C)
+
     # Visualization outputs (optional)
     if vis_folder:
         vis_folder = Path(vis_folder)
@@ -225,6 +398,12 @@ def process(input_pdb, consA_with_pca, consB_with_pca, out_dir, vis_folder=None,
     return {
         "pdb_name": Path(input_pdb).stem,
         "BA": BA, "BC1": BC1, "AC1": AC1, "BC2": BC2, "AC2": AC2, "dc": dc,
+        "alpha_cdr3_bend_deg": alpha_cdr3["bend_deg"],
+        "alpha_cdr3_apex_height_A": alpha_cdr3["apex_height_A"],
+        "alpha_cdr3_apex_resi": alpha_cdr3["apex_resi"],
+        "beta_cdr3_bend_deg": beta_cdr3["bend_deg"],
+        "beta_cdr3_apex_height_A": beta_cdr3["apex_height_A"],
+        "beta_cdr3_apex_resi": beta_cdr3["apex_resi"],
         "input_aligned": input_aligned_viz
     }
 
@@ -384,7 +563,11 @@ def run(input_pdb, out_path, vis=True):
     )
 
     # Save CSV
-    df = pd.DataFrame([result])[["pdb_name", "BA", "BC1", "AC1", "BC2", "AC2", "dc"]]
+    df = pd.DataFrame([result])[[
+        "pdb_name", "BA", "BC1", "AC1", "BC2", "AC2", "dc",
+        "alpha_cdr3_bend_deg", "alpha_cdr3_apex_height_A", "alpha_cdr3_apex_resi",
+        "beta_cdr3_bend_deg", "beta_cdr3_apex_height_A", "beta_cdr3_apex_resi",
+    ]]
     df.to_csv(tmp_out / "angles_results.csv", index=False)
     print(f"📄 Saved: {tmp_out/'angles_results.csv'}")
     if vis:

@@ -636,7 +636,7 @@ def process_pdb(
     }
 
     # Pairing on the original file (interface-based)
-    pairs, per_chain_map, germline_info = pair_tcrs_by_interface(
+    pairs, per_chain_map, germline_info, _chain_types = pair_tcrs_by_interface(
         input_pdb, contact_cutoff=contact_cutoff, min_contacts=min_contacts, legacy_anarci=legacy_anarci
     )
 
@@ -644,7 +644,7 @@ def process_pdb(
     if write_germlines:
         if not germline_info:
             print("[germline] No germline information available, running legacy ANARCI. This will not change the numbering")
-            _, _, germline_info = pair_tcrs_by_interface(
+            _, _, germline_info, _ = pair_tcrs_by_interface(
                 input_pdb, contact_cutoff=contact_cutoff, min_contacts=min_contacts, legacy_anarci=True
             )
         germlines_path = f"{base}_germlines.txt"

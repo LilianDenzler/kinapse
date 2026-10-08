@@ -29,6 +29,12 @@ _LAZY = {
     "PMHC": (".pmhc", "PMHC"),
     "TCRpMHC": (".pmhc", "TCRpMHC"),
     "load_pmhc": (".pmhc", "load_pmhc"),
+    # CD8 co-receptor grafting
+    "add_cd8": (".cd8", "add_cd8"),
+    "select_cd8_template": (".cd8", "select_cd8_template"),
+    "load_templates": (".cd8", "load_templates"),
+    "CD8Template": (".cd8", "CD8Template"),
+    "CD8Result": (".cd8", "CD8Result"),
     # interface characterization
     "analyze_interface": (".interface", "analyze_interface"),
     "InterfaceResult": (".interface", "InterfaceResult"),
